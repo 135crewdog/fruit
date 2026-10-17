@@ -9,7 +9,7 @@
  */
 'use strict';
 
-var APP_VERSION = '2026.10.17.5';
+var APP_VERSION = '2026.10.17.6';
 var STORAGE = { settings: 'fruit.settings', data: 'fruit.data', backup: 'fruit.backup' };
 var MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 var LONG_DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
@@ -483,8 +483,9 @@ if (typeof document !== 'undefined') {
       if (date < h.created || date > end) return 'off';
       var st = R.dayState(h, date, end), sched = R.isScheduled(h, date);
       if (h.direction === 'stop') {
-        if (st === 'missed') return 'missed';
-        return sched && st === 'done' ? 'done' : '';
+        // A stop habit's unlogged past day is "missed" to the rules, but only a scheduled one shows so.
+        if (!sched) return '';
+        return st === 'missed' ? 'missed' : st === 'done' ? 'done' : '';
       }
       if (st === 'done') return 'done';
       if (st === 'partial' || (st === 'unsettled' && amountOn(h, date) > 0)) return 'partial';
@@ -553,7 +554,7 @@ if (typeof document !== 'undefined') {
 
       var legend = el('div', 'legend');
       var limited = h.direction === 'stop' && h.goal.amount > 0;
-      [['l-done', h.direction === 'stop' ? (limited ? 'within the limit' : 'no slip') : 'done'], ['l-partial', 'partial'], ['l-missed', h.direction === 'stop' ? (limited ? 'over the limit' : 'a slip') : 'missed']].forEach(function (p) {
+      [['l-done', h.direction === 'stop' ? (limited ? 'within the limit' : 'no slip') : 'done'], ['l-partial', 'partial'], ['l-missed', h.direction === 'stop' ? (limited ? 'over the limit, or not marked' : 'a slip, or not marked') : 'missed']].forEach(function (p) {
         if (h.direction === 'stop' && p[0] === 'l-partial') return;
         var li = el('span');
         li.appendChild(el('i', p[0]));
