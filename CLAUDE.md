@@ -1,6 +1,6 @@
 # Low-Hanging Fruit
 
-Personal habit tracker. A PWA installed on one iPhone keeps every habit and every check-in in one JSON document on the phone, works out streaks and completion itself, and backs the document up to a file in the owner's Google Drive through a tiny Apps Script web app. A replacement for the habit-tracking core of Atoms, nothing more.
+Personal habit tracker. A PWA installed on one iPhone keeps every habit and every check-in in one JSON document on the phone, works out streaks and completion itself, and backs the document up to a file in the owner's Google Drive through a tiny Apps Script web app. It tracks habits to start and habits to stop. A replacement for the habit-tracking core of Atoms, nothing more.
 
 Low-Hanging Fruit follows the HIG at https://135crewdog.github.io/hig/ (Simple, Future-proof, Efficient, and the Baseline). It is a **focused** app in the HIG's sense: built for an iPhone in portrait, installed to the home screen, following iOS defaults, the way Show Time is. It is not a plain page for any device like Apollo.
 
@@ -37,6 +37,7 @@ One document in `localStorage` under `fruit.data`. The backup file and the expor
       "action": "get out of bed",
       "cue": "before 6 a.m.",
       "identity": "a morning person",
+      "direction": "start",
       "created": "2026-01-21",
       "archived": null,
       "schedule": { "kind": "days", "days": [1, 2, 3, 4, 5] },
@@ -49,12 +50,13 @@ One document in `localStorage` under `fruit.data`. The backup file and the expor
 
 - `v` is the document version, `1`. `updated` is the UTC instant of the last change, the one place UTC appears; it orders backups, nothing else.
 - A habit's statement has three parts, after Atoms: `action` ("get out of bed"), `cue` ("before 6 a.m.", optional) and `identity` ("a morning person"). The app assembles the sentence: "I will get out of bed before 6 a.m. so that I can become a morning person."
+- `direction` is `start` (do this) or `stop` (don't do this). A stop habit's sentence is "I will not drink more than two beers on a weeknight so that I can become a clear-headed person."
 - `schedule.kind` is one of:
   - `days`: `days` lists weekdays, `0` = Sunday to `6` = Saturday. Atoms' only kind.
   - `weekly`: `times` is N done days per week, on any days.
   - `every`: `days` is N; scheduled days are `created`, `created` + N, `created` + 2N, and so on.
-- `goal.amount` is a number above 0. `goal.unit` is free text, `times` by default. A `times` goal of 1 is the plain once-a-day habit. Units are labels; nothing converts.
-- `log` maps a local date (`YYYY-MM-DD`) to the amount logged that day. A day is **done** when its amount is at least `goal.amount`, **partial** when it is above 0 and below. A key whose amount falls to 0 is removed.
+- `goal.amount` is a number, `goal.unit` free text, `times` by default. Units are labels; nothing converts. For a start habit the goal is what makes a day done: `amount` is above 0, and a `times` goal of 1 is the plain once-a-day habit. For a stop habit the goal is a **limit**, at most `amount` a day: `0 times` by default (none at all), or `2 drinks` for "drink less".
+- `log` maps a local date (`YYYY-MM-DD`) to the amount logged that day: what was done for a start habit, the slips for a stop habit. A start habit's day is **done** when its amount is at least `goal.amount`, **partial** when it is above 0 and below. A stop habit's day is **clean** when its amount is at most the limit, **missed** when above; a day with nothing logged is clean. A key whose amount falls to 0 is removed.
 - `id` is random and never shown. `created` is the local date the habit was made. `archived` is the local date it was archived, or `null`.
 - Settings live apart, in `fruit.settings` (`{ url, token, theme }`), so a backup or export never carries the token.
 
@@ -68,15 +70,17 @@ All of this lives in one file, `app/rules.js`: pure functions, no DOM, no storag
 
 | Schedule | A scheduled day is | Current streak | Completion rate |
 |---|---|---|---|
-| `days` | a date whose weekday is in `days` | consecutive scheduled days done, counting back from today; today is skipped, not broken, while it is not yet done | done scheduled days ÷ scheduled days, from `created` through yesterday, plus today once it is done |
+| `days` | a date whose weekday is in `days` | consecutive scheduled days done, counting back from today; today is skipped, not broken, until it is settled | done scheduled days ÷ scheduled days, from `created` through yesterday, plus today once it is settled |
 | `every` N | `created` + k·N for k = 0, 1, 2… | as `days` | as `days` |
-| `weekly` N | every day; the week is the unit | consecutive whole weeks with at least N done days, counting back from last week, plus the current week once it has N | weeks with at least N done days ÷ whole weeks, from the week containing `created` through last week |
+| `weekly` N | every day; the week is the unit | consecutive whole weeks with at least N done days, counting back from last week, plus the current week once its settled days include N done | weeks with at least N done days ÷ whole weeks, from the week containing `created` through last week |
 
+- **Today counts once its outcome is settled.** A start habit's day settles when it is done; a stop habit's day settles when the limit is exceeded. Until then today is skipped by every figure: a done start day adds to the streak at once, a slip over the limit drops a stop streak to 0 at once, and a clean-so-far day adds nothing until tomorrow.
+- **Stop habits** use the same rules with "done" read as "clean". There is no partial state: a slip within the limit is still a clean day. A stop habit's schedule is `days` or `weekly` (N clean days a week); `every` is not offered, because "every 3 days" means nothing for a habit to stop.
 - **Total** is the number of done days since `created`, scheduled or not. It is a count of days, not a sum of amounts, so a 64-oz habit and a 1-time habit read alike.
 - **Best streak** is the longest current-streak value the habit has ever had, by the same rule.
 - A **bonus day** (done, not scheduled) counts toward Total and nothing else: it neither extends nor breaks a streak and is in neither side of the completion rate.
-- A **partial day** is not done. It is shown in yellow and counts for nothing in the rules.
-- A **missed day** is a scheduled day before today with no done amount.
+- A **partial day** (start habits only) is not done. It is shown in yellow and counts for nothing in the rules.
+- A **missed day** is a scheduled day that has settled without being done: for a start habit, a past scheduled day without a done amount; for a stop habit, a scheduled day with slips over the limit, today included.
 - **No scheduled days yet** (a habit created today, a `weekly` habit in its first week): completion rate is blank, not 0%.
 - An **archived** habit is frozen: no scheduled days fall after `archived`, and its figures stop there.
 
@@ -84,7 +88,7 @@ All of this lives in one file, `app/rules.js`: pure functions, no DOM, no storag
 
 These are the spec. If the code disagrees with these tables, the code is wrong. Never change an expected value to make a test pass; ask the user. `tests/rules.test.js` holds these tables verbatim.
 
-Today is **2026-10-17, a Saturday**, unless a row says otherwise. Every logged day in these tables is done (amount at goal) unless marked partial. Weekdays are Monday to Friday.
+Today is **2026-10-17, a Saturday**, unless a row says otherwise. Every logged day in these tables is done (amount at goal) unless marked partial; for a stop habit the log lists slips, with the amount where it matters. Weekdays are Monday to Friday.
 
 | # | Habit | Log | Current streak | Best streak | Completion | Total |
 |---|---|---|---|---|---|---|
@@ -106,8 +110,12 @@ Today is **2026-10-17, a Saturday**, unless a row says otherwise. Every logged d
 | 16 | 3 per week, created 2026-09-27 | Sep 28, 30, Oct 2, 5, 7, 12, 14, 16 | 1 | 1 | 1/2 | 8 |
 | 17 | 3 per week, created 2026-09-27 | Sep 28, 30, Oct 2, 5, 7, 12, 14 | 0 | 1 | 1/2 | 7 |
 | 18 | 3 per week, created 2026-10-11 (this Sunday) | Oct 12, 14, 16 | 1 | 1 | blank | 3 |
+| 19 | stop, every day, limit 0, created 2026-10-01 | slips Oct 5, 10 | 6 | 6 | 14/16 | 14 |
+| 20 | stop, every day, limit 0, created 2026-10-01 | slips Oct 5, 10, 17 (today) | 0 | 6 | 14/17 | 14 |
+| 21 | stop, weekdays, limit 2 drinks, created 2026-10-12 | Oct 12: 1, 13: 3, 14: 2, 16: 2 | 3 | 3 | 4/5 | 4 |
+| 22 | stop, 5 clean days a week, limit 0, created 2026-09-27 | slips Sep 29, Oct 3, 6, 7, 8, 12 | 1 | 1 | 1/2 | 14 |
 
-Notes on the rows. 1: today is a Saturday, unscheduled, so it is skipped; the 12 scheduled days are Oct 1, 2, 5–9, 12–16. 4 and 5: Thursday the 15th was missed. 6: the Saturday is a bonus day. 7: the streak of five ran Oct 1–7, then the 8th was missed. 9: Friday is partial, so the streak stops at Thursday and the rate counts five scheduled days with four done. 10: nothing after Oct 10 is scheduled, so a week of silence costs nothing. 11–13: the scheduled days are Sep 28, Oct 1, 4, 7, 10, 13, 16 (and 19), so the anchor arithmetic crosses the month end; 13 missed Oct 7. 14–17: the whole weeks are Sep 27–Oct 3 and Oct 4–10, the current week is Oct 11–17; 16 has only two done days in the week of Oct 4, which breaks the run, and the current week's three add one; 17 has two in the current week too. 18: no whole week has passed, so the rate is blank while the met current week gives a streak of one.
+Notes on the rows. 1: today is a Saturday, unscheduled, so it is skipped; the 12 scheduled days are Oct 1, 2, 5–9, 12–16. 4 and 5: Thursday the 15th was missed. 6: the Saturday is a bonus day. 7: the streak of five ran Oct 1–7, then the 8th was missed. 9: Friday is partial, so the streak stops at Thursday and the rate counts five scheduled days with four done. 10: nothing after Oct 10 is scheduled, so a week of silence costs nothing. 11–13: the scheduled days are Sep 28, Oct 1, 4, 7, 10, 13, 16 (and 19), so the anchor arithmetic crosses the month end; 13 missed Oct 7. 14–17: the whole weeks are Sep 27–Oct 3 and Oct 4–10, the current week is Oct 11–17; 16 has only two done days in the week of Oct 4, which breaks the run, and the current week's three add one; 17 has two in the current week too. 18: no whole week has passed, so the rate is blank while the met current week gives a streak of one. 19: today has no slip yet, so it is unsettled and skipped; Oct 11–16 are clean. 20: a slip today settles it as missed, so the streak is 0 and today joins the rate. 21: Tuesday went over the limit; Thursday, with nothing logged, is clean. 22: the week of Sep 27 has five clean days (met), the week of Oct 4 has four (unmet, which breaks the run), and the current week's settled days Oct 11, 13, 14, 15, 16 are five clean, so it adds one; Total counts clean days through yesterday.
 
 ### Schedule in words
 
@@ -122,6 +130,7 @@ The app describes a schedule in one phrase, built by one function in `rules.js`:
 | `weekly` N | `3 times a week`, `Once a week` |
 | `every` N | `Every 3 days`, `Every other day` for 2, `Every day` for 1 |
 | goal above 1 | the amount and unit lead: `8 times a day, weekdays`, `2 miles a day, every 3 days`, `64 oz a day, 3 times a week` |
+| stop habit | the schedule words alone for a limit of 0; `Up to 2 drinks a day, weekdays` for a limit above 0; `5 clean days a week` for `weekly` |
 
 ## The app
 
@@ -155,9 +164,10 @@ The large title "Today" with the local date beneath. A card of today's scheduled
 
 - once a day: a check, tapped to log, tapped again to undo;
 - a count per day: `+` with the count beside it (`3 of 8`), `−` to undo one;
-- a measured amount: a number field with the unit beside it; clearing it undoes.
+- a measured amount: a number field with the unit beside it; clearing it undoes;
+- a stop habit: a Slipped `+` (with the count beside it, `1 of 2`, when the limit is above 0), `−` to undo one.
 
-A done row turns `--leaf` and shows the current streak as `10 days` (`1 day`; `3 weeks` for a weekly habit). A second card, collapsed by default, "Not scheduled today", holds the other active habits with the same controls, so a bonus day can be logged. Empty state: "No habits yet" and an Add button. A change is saved at once and reflected at once; the app does the math.
+A done row turns `--leaf` and shows the current streak as `10 days` (`1 day`; `3 weeks` for a weekly habit). A stop habit's row is `--leaf` from the start of the day, clean so far, and turns `--spot` once the limit is passed. A second card, collapsed by default, "Not scheduled today", holds the other active habits with the same controls, so a bonus day can be logged. Empty state: "No habits yet" and an Add button. A change is saved at once and reflected at once; the app does the math.
 
 ### Habits
 
@@ -165,11 +175,11 @@ Every active habit in creation order, each row the action over the schedule in w
 
 ### Habit (pushed)
 
-The full statement as one sentence, the schedule in words beneath it. Four figures in a 2×2 card: Current streak, Best streak, Completion rate (as a percent, blank when there is nothing to count), Total. Then the **calendar**: one month, this month first, a swipe for earlier months back to `created`, with each day colored by state: done `--leaf`, partial `--pear`, missed `--spot`, unscheduled or future plain. Tapping a past or present day logs it the same way Today does (a check toggles, a count opens a stepper, an amount opens a field); this is the backfill. Below: Edit, Archive (Unarchive on an archived habit), Delete (asks first, red). An archived habit shows its figures frozen at `archived`.
+The full statement as one sentence, the schedule in words beneath it. Four figures in a 2×2 card: Current streak, Best streak, Completion rate (as a percent, blank when there is nothing to count), Total. Then the **calendar**: one month, this month first, a swipe for earlier months back to `created`, with each day colored by state: done or clean `--leaf`, partial `--pear`, missed `--spot`, unscheduled or future plain. Tapping a past or present day logs it the same way Today does (a check toggles, a count opens a stepper, an amount opens a field); this is the backfill. Below: Edit, Archive (Unarchive on an archived habit), Delete (asks first, red). An archived habit shows its figures frozen at `archived`.
 
 ### New and Edit habit (pushed)
 
-The live sentence at the top, assembled as the fields fill. Three fields: "I will…" (the action, required), "…when or where…" (the cue, optional), "…so that I can become…" (the identity, required). A segmented control for the schedule kind, Days / Per week / Every N days, and beneath it the seven-day picker, a number of times, or a number of days. Goal: an amount (1 by default) and a unit (`times` by default; free text with a datalist of Atoms' units: times, steps, cups, ml, liters, oz, hours, min, sec, cal, kcal, miles, km, meters, feet, yards, pounds, kg). Save is disabled until the action, the identity and a valid schedule exist. Editing changes the habit for all time; there is no schedule history (parked). No time, no reminder.
+A segmented control first: Start a habit / Stop a habit. Then the live sentence, assembled as the fields fill, and three fields: "I will…" or "I will not…" (the action, required), "…when or where…" (the cue, optional), "…so that I can become…" (the identity, required). A segmented control for the schedule kind, Days / Per week / Every N days (Every N days is not offered for a stop habit), and beneath it the seven-day picker, a number of times, or a number of days. Goal, or Limit for a stop habit: an amount (1 by default; 0 for a stop habit) and a unit (`times` by default; free text with a datalist of Atoms' units: times, steps, cups, ml, liters, oz, hours, min, sec, cal, kcal, miles, km, meters, feet, yards, pounds, kg). Save is disabled until the action, the identity and a valid schedule exist. Editing changes the habit for all time; there is no schedule history (parked). No time, no reminder.
 
 ### Settings (sheet)
 
@@ -247,4 +257,5 @@ Discussed, not adopted, might come back. Ask before building.
 - **Bonus days extending a streak.**
 - **A Monday-start week** setting.
 - **A handoff link** (`#url=…&token=…`) like Apollo's; there is no sheet menu to generate it, so the URL and token are typed once instead.
+- **Other palettes.** Peach, blackberry and so on as a Settings choice; pear is the only one in version 1. The tokens are named by role (`--leaf`, `--pear`, `--spot`) so a palette is three values.
 - Widgets and Apple Watch.
