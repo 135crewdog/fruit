@@ -160,12 +160,16 @@ button, input:not([type="checkbox"]), select { -webkit-appearance: none; appeara
 .stepper button { width: 40px; height: 36px; border: none; border-radius: 8px; background: transparent; color: var(--text); font-size: 22px; line-height: 1; cursor: pointer; }
 .stepper button:disabled { color: var(--text2); opacity: 0.5; cursor: default; }
 .stepper .n { min-width: 52px; text-align: center; font-size: 15px; font-weight: 600; font-variant-numeric: tabular-nums; }
+/* The mark on a stop habit's row: an empty ring until the day is logged, a check after. */
+.stepper button.n.mark { width: auto; min-width: 52px; padding: 0 8px; background: transparent; font-size: 18px; font-weight: 600; display: flex; align-items: center; justify-content: center; }
+.stepper .ring { display: inline-block; width: 18px; height: 18px; border: 2px solid var(--text2); border-radius: 50%; }
+.row.clean .stepper .ring, .row.over .stepper .ring { border-color: var(--on-accent); }
 .stepper.partial { background: var(--pear); }
 .stepper.partial button, .stepper.partial .n { color: var(--on-accent); }
 .row.done .stepper, .row.clean .stepper, .row.over .stepper { background: rgba(0, 0, 0, 0.12); }
 .row.done .stepper button, .row.done .stepper .n, .row.clean .stepper button, .row.clean .stepper .n, .row.over .stepper button, .row.over .stepper .n { color: var(--on-accent); }
 .amount { flex: none; display: flex; align-items: center; gap: 6px; }
-.amount input { width: 84px; padding: 8px 10px; background: var(--fill); border: 1px solid var(--border); border-radius: 10px; color: var(--text); font-size: 17px; min-height: 40px; text-align: right; }
+.row .amount input[type="number"] { width: 84px; padding: 8px 10px; background: var(--fill); border: 1px solid var(--border); border-radius: 10px; color: var(--text); font-size: 17px; min-height: 40px; text-align: right; }
 .amount span { font-size: 13px; color: var(--text2); }
 .row.done .amount span { color: var(--on-accent); }
 

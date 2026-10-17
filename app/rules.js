@@ -13,7 +13,8 @@
  *
  * Vocabulary (CLAUDE.md, "The rules"):
  *   done       a start habit's day at or above its goal, or a stop habit's day
- *              at or below its limit (the spec calls that "clean");
+ *              that was logged with slips at or below its limit (a 0 is the mark
+ *              for a day with nothing to report);
  *   partial    a start habit's day above 0 and below its goal;
  *   missed     a scheduled day that settled without being done;
  *   unsettled  today, while its outcome is still open.
@@ -96,13 +97,20 @@ function amountOn(habit, iso) {
   return typeof a === 'number' && isFinite(a) && a > 0 ? a : 0;
 }
 
+/** True when the day has an entry at all. A stop habit's 0 is an entry: the day was marked, nothing to report. */
+function logged(habit, iso) {
+  var a = habit.log ? habit.log[iso] : undefined;
+  return typeof a === 'number' && isFinite(a) && a >= 0;
+}
+
 /** 'done' | 'partial' | 'missed' | 'unsettled' | 'future'. Says nothing about the schedule. */
 function dayState(habit, iso, today) {
   if (iso > today) return 'future';
   var a = amountOn(habit, iso);
   if (isStop(habit)) {
     if (a > habit.goal.amount) return 'missed';
-    return iso === today ? 'unsettled' : 'done';
+    if (logged(habit, iso)) return 'done';
+    return iso === today ? 'unsettled' : 'missed';
   }
   if (a >= habit.goal.amount) return 'done';
   if (iso === today) return 'unsettled';
@@ -220,7 +228,7 @@ function completion(habit, today) {
 
 /**
  * Done days since created, scheduled or not, for a start habit (a bonus day
- * counts here and nowhere else). For a stop habit, clean scheduled days: there
+ * counts here and nowhere else). For a stop habit, scheduled days within the limit: there
  * is no bonus for a day on which nothing was asked.
  */
 function total(habit, today) {
@@ -293,7 +301,7 @@ function scheduleWords(habit) {
       properNoun = true;
     }
   } else if (s.kind === 'weekly') {
-    if (stop) base = s.times + ' clean day' + (s.times === 1 ? '' : 's') + ' a week';
+    if (stop) base = s.times + ' day' + (s.times === 1 ? '' : 's') + ' a week';
     else base = s.times === 1 ? 'Once a week' : s.times + ' times a week';
   } else {
     base = s.days === 1 ? 'Every day' : s.days === 2 ? 'Every other day' : 'Every ' + s.days + ' days';
@@ -324,6 +332,7 @@ if (typeof module !== 'undefined' && module.exports) {
     weekStart: weekStart,
     firstWeekStart: firstWeekStart,
     isScheduled: isScheduled,
+    logged: logged,
     dayState: dayState,
     weekStatus: weekStatus,
     currentStreak: currentStreak,

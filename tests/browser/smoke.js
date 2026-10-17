@@ -132,6 +132,7 @@ async function main() {
     await page.waitForSelector('#screen-edit.open');
     await page.click('[data-direction="stop"]');
     assert.equal(await page.isHidden('#kind-every'), true, 'every N days is not offered for a stop habit');
+    assert.equal(await page.getAttribute('#action', 'placeholder'), 'drink more than two beers', 'placeholders follow the direction');
     assert.equal(await text('#goal-title'), 'Limit');
     await page.fill('#action', 'snack after dinner');
     await page.fill('#identity', 'a disciplined eater');
@@ -141,14 +142,24 @@ async function main() {
     await page.waitForSelector('#screen-edit:not(.open)');
     const snack = page.locator('#today .row', { hasText: 'snack after dinner' });
     await snack.waitFor();
-    assert.equal(await snack.evaluate((n) => n.classList.contains('clean')), true, 'a stop row starts clean');
-    assert.equal((await snack.locator('.stepper .n').textContent()).trim(), 'Clean');
+    assert.equal(await snack.evaluate((n) => n.classList.contains('clean')), false, 'a stop row is plain until the day is marked');
+    assert.equal(await snack.locator('.stepper .mark .ring').count(), 1, 'the middle is an empty ring before the day is logged');
+    assert.equal(await snack.locator('.stepper button[aria-label="Take back the mark"]').isDisabled(), true);
+    await snack.locator('.stepper button[aria-label="Mark the day: nothing to report"]').click();
+    await page.waitForSelector('#today .row.clean');
+    assert.equal((await snack.locator('.stepper .n').textContent()).trim(), '✓');
+    assert.match((await snack.locator('.meta').textContent()).trim(), /^1 day\b/, 'marking today clean settles it, so it counts at once');
     await snack.locator('.stepper button[aria-label="Slipped"]').click();
     await page.waitForSelector('#today .row.over');
-    assert.equal((await snack.locator('.stepper .n').textContent()).trim(), '1 slip');
+    assert.equal((await snack.locator('.stepper .n').textContent()).trim(), '1');
     await shot('06-today-three');
     await snack.locator('.stepper button[aria-label="Undo a slip"]').click();
-    await page.waitForSelector('#today .row.over', { state: 'detached' });
+    await page.waitForSelector('#today .row.clean');
+    await snack.locator('.stepper button.mark.on').click(); // a tap on the check takes the mark back
+    await page.waitForSelector('#today .row.clean', { state: 'detached' });
+    assert.equal(await snack.locator('.stepper .mark .ring').count(), 1);
+    const snackLog = await page.evaluate(() => JSON.parse(localStorage.getItem('fruit.data')).habits.find((h) => h.action === 'snack after dinner').log);
+    assert.deepEqual(snackLog, {}, 'taking the mark back removes the entry');
     // On its calendar, a day the stop habit is not scheduled for cannot be tapped
     await snack.locator('.text').click();
     await page.waitForSelector('#screen-habit.open');
@@ -234,6 +245,33 @@ async function main() {
       t('touchstart', 300); t('touchmove', 100); area.dispatchEvent(new TouchEvent('touchend', { bubbles: true }));
     });
     await page.waitForFunction(() => document.getElementById('title').textContent === 'Habits');
+
+    // A weekday stop habit created last month: on its calendar, unmarked past weekdays are missed,
+    // unmarked past weekends stay plain, and the legend names both kinds of miss.
+    const lastMonth = app.addMonths(TODAY.slice(0, 7), -1);
+    await page.evaluate((created) => {
+      const d = JSON.parse(localStorage.getItem('fruit.data'));
+      const h = d.habits.find((x) => x.action === 'snack after dinner');
+      h.created = created; h.schedule = { kind: 'days', days: [1, 2, 3, 4, 5] }; h.log = {};
+      localStorage.setItem('fruit.data', JSON.stringify(d));
+    }, lastMonth + '-01');
+    await page.reload();
+    await page.waitForSelector('#today .row');
+    await page.click('[data-tab="1"]');
+    await page.locator('#habits .row .text', { hasText: 'snack after dinner' }).click();
+    await page.waitForSelector('#screen-habit.open');
+    await page.click('#habit-detail .cal-head button[aria-label="Earlier month"]');
+    await page.waitForFunction((m) => document.querySelector('#habit-detail .cal-head .month').textContent === m, app.monthWords(lastMonth));
+    const cells = await page.$$eval('#habit-detail .cal .day:not(.blank)', (els) => els.map((e) => ({ label: e.getAttribute('aria-label'), missed: e.classList.contains('missed'), disabled: e.disabled })));
+    for (let d = lastMonth + '-01'; d <= lastMonth + '-' + String(app.daysInMonth(lastMonth)).padStart(2, '0'); d = rules.addDays(d, 1)) {
+      const cell = cells.find((c) => c.label === app.formatDisplayDate(d));
+      const weekend = rules.weekday(d) === 0 || rules.weekday(d) === 6;
+      assert.equal(cell.missed, !weekend, d + (weekend ? ' is a weekend and stays plain' : ' is an unmarked weekday and shows missed'));
+      assert.equal(cell.disabled, weekend, d + ' tappable only when scheduled');
+    }
+    assert.match(await text('#habit-detail .legend'), /a slip, or not marked/);
+    await page.click('[data-close="screen-habit"]');
+    await page.waitForSelector('#screen-habit:not(.open)');
 
     // The calendar turns months with a swipe, back to the month the habit was created
     const twoMonthsAgo = app.addMonths(TODAY.slice(0, 7), -2) + '-15';
