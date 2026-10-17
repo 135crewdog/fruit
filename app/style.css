@@ -34,7 +34,8 @@
 
 /* The shell. This is a focused iPhone app, after Show Time: the root is the viewport, the
    body never scrolls, each page scrolls inside itself, and the safe areas are padded so the
-   header sits under the status bar and the tab bar above the home indicator. */
+   header sits under the status bar and the tab bar above the home indicator. On anything
+   wider than a phone the shell is capped at 430px and centered; the rest is page background. */
 * { margin: 0; padding: 0; box-sizing: border-box; }
 html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; height: 100%; }
 body {
@@ -49,6 +50,7 @@ button, input:not([type="checkbox"]), select { -webkit-appearance: none; appeara
 
 .app {
   position: fixed; inset: 0;
+  max-width: 430px; margin: 0 auto;
   height: 100vh; height: 100dvh;
   display: flex; flex-direction: column;
   padding-top: env(safe-area-inset-top);
@@ -98,6 +100,7 @@ button, input:not([type="checkbox"]), select { -webkit-appearance: none; appeara
 /* Pushed screens slide in from the right; the sheet rises from the bottom. Both cover the shell. */
 .screen, .sheet {
   position: fixed; inset: 0; z-index: 5; display: flex; flex-direction: column;
+  max-width: 430px; margin: 0 auto;
   background: var(--bg); padding-top: env(safe-area-inset-top);
   transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), visibility 0.3s;
   visibility: hidden;

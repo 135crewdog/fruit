@@ -146,7 +146,7 @@ The app describes a schedule in one phrase, built by one function in `rules.js`:
 
 ### An iPhone app shell, after Show Time
 
-The app is installed to the home screen and behaves like an iOS app. `display: standalone`, portrait, the viewport `width=device-width, initial-scale=1, viewport-fit=cover` with no user zoom, `apple-mobile-web-app-status-bar-style` black-translucent, the root sized to the viewport with `env(safe-area-inset-*)` padding, `overflow: hidden` on the body, and each page scrolling inside itself. Two top-level pages sit side by side and slide (`translateX`, 0.3s) when a tab is tapped or a horizontal swipe dominates the vertical by at least 50px. Detail and edit screens push in from the right and have a back chevron; Settings presents as a sheet. With reduced motion on, slides become cuts.
+The app is installed to the home screen and behaves like an iOS app. `display: standalone`, portrait, the viewport `width=device-width, initial-scale=1, viewport-fit=cover` with no user zoom, `apple-mobile-web-app-status-bar-style` black-translucent, the root sized to the viewport with `env(safe-area-inset-*)` padding, `overflow: hidden` on the body, and each page scrolling inside itself. Two top-level pages sit side by side and slide (`translateX`, 0.3s) when a tab is tapped or a horizontal swipe dominates the vertical by at least 50px. Detail and edit screens push in from the right and have a back chevron; Settings presents as a sheet. With reduced motion on, slides become cuts. On anything wider than a phone the shell and its screens are capped at 430px and centered, as Show Time is; the rest is page background.
 
 Apollo's "no app shell" rule does **not** apply here, and the reason is written down as the HIG's Baseline asks: that rule belongs to a broad app that must look right on any device. Low-Hanging Fruit is focused on one iPhone, so it sizes itself to the phone the way Show Time does. An iPad or desktop gets whatever falls out and is not a target. The shell is the first thing checked on the phone: no band of page beneath the app, the status bar and home indicator respected, the keyboard not covering the field being typed in.
 
@@ -162,7 +162,7 @@ Where Show Time uses iOS blue and Apollo its due-date colors, Low-Hanging Fruit 
 | `--pear` | `#d9c95a` yellow | a partial day, the active segment, the picked weekday |
 | `--spot` | `#b89a6e` pale brown | a missed scheduled day, the "spots on a ripe pear" |
 
-These are first values, to be tuned on the iPhone in light and dark before milestone 3 closes. Everything the app says is sentence case; section titles are uppercase as a visual device; proper nouns keep their capitals. Every date a human reads is `DD-Mmm-YY` (`17-Oct-26`); the Today title adds the weekday (`Saturday 17-Oct-26`).
+These are first values, to be tuned on the iPhone in light and dark before milestone 3 closes. The **icon** is the name in title case, extra-bold, with the peach emoji as the hyphen (`Low 🍑 / Hanging / Fruit`), on a mango gradient from green through orange to red, after Apollo's gradient icon. It is baked to PNG by `tools/icon.js` so every device shows the same picture; there is no SVG icon. Everything the app says is sentence case; section titles are uppercase as a visual device; proper nouns keep their capitals. Every date a human reads is `DD-Mmm-YY` (`17-Oct-26`); the Today title adds the weekday (`Saturday 17-Oct-26`).
 
 ### Navigation
 
@@ -229,11 +229,12 @@ After a code change, bump `SCRIPT_VERSION`, paste again and deploy a **new versi
 ```
 CLAUDE.md                 this file, the spec
 README.md                 for developers: tests, API, hosting, version bumps
-app/                      the PWA: index.html, app.js, rules.js, style.css, sw.js, manifest.webmanifest, icons
+app/                      the PWA: index.html, app.js, rules.js, style.css, sw.js, manifest.webmanifest, icon-192.png, icon-512.png
 app/guide/                the setup guide page
 apps-script/Code.js       the backup web app: doGet, doPost
 tests/*.test.js           node --test: rules.test.js (the tables above), app.test.js (the app's pure helpers)
 tests/browser/            smoke.js drives the app in Chromium at an iPhone viewport; needs Playwright, dev only
+tools/icon.js             renders the icon PNGs; needs Playwright, dev only
 .github/workflows/        test.yml runs node --test and the browser smoke test; pages.yml runs it, then publishes app/ to GitHub Pages from main
 ```
 

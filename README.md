@@ -25,6 +25,10 @@ tests/                node --test, plus a Playwright smoke test in tests/browser
 
 The browser smoke test needs Playwright with Chromium (a development tool, nothing is saved to the repository): `npm install --no-save --no-package-lock playwright && npx playwright install chromium`, then `node tests/browser/smoke.js [screenshot-dir]`. It serves `app/` and drives it at an iPhone viewport through adding, logging, backfilling, editing, archiving and deleting habits, Settings, a reload and the service worker. CI runs both on every push and pull request, and the Pages deploy waits for them.
 
+## The icon
+
+`node tools/icon.js` renders `app/icon-512.png` and `app/icon-192.png` from the template inside it (Inter and Noto Color Emoji must be installed; CI's Ubuntu runner has both). Change the template, re-render, commit the PNGs.
+
 ## Hosting
 
 `pages.yml` publishes `app/` to GitHub Pages at https://135crewdog.github.io/fruit/ on every push to `main` that touches it. One-time setup: Settings → Pages → Build and deployment → Source: GitHub Actions. On the iPhone, open the address in Safari, Share → Add to Home Screen.
