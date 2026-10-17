@@ -29,15 +29,17 @@ const ROWS = [
   '| 16 | 3 per week, created 2026-09-27 | Sep 28, 30, Oct 2, 5, 7, 12, 14, 16 | 2 | 2 | 1/2 | 8 |',
   '| 17 | 3 per week, created 2026-09-27 | Sep 28, 30, Oct 2, 5, 7, 12, 14 | 1 | 1 | 1/2 | 7 |',
   '| 18 | 3 per week, created 2026-10-11 (this Sunday) | Oct 12, 14, 16 | 1 | 1 | blank | 3 |',
-  '| 19 | stop, every day, limit 0, created 2026-10-01 | slips Oct 5, 10 | 14 | 14 | 14/16 | 14 |',
-  '| 20 | stop, every day, limit 0, created 2026-10-01 | slips Oct 5, 10, 17 (today) | 14 | 14 | 14/17 | 14 |',
-  '| 21 | stop, weekdays, limit 2 drinks, created 2026-10-12 | Oct 12: 1, 13: 3, 14: 2, 16: 2 | 4 | 4 | 4/5 | 4 |',
-  '| 22 | stop, 5 clean days a week, limit 0, created 2026-09-27 | slips Sep 29, Oct 3, 6, 7, 8, 12 | 2 | 2 | 1/2 | 14 |',
+  '| 19 | stop, every day, limit 0, created 2026-10-01 | clean Oct 1–4, 6–9, 11–16; slips Oct 5, 10 | 14 | 14 | 14/16 | 14 |',
+  '| 20 | stop, every day, limit 0, created 2026-10-01 | clean Oct 1–4, 6–9, 11–16; slips Oct 5, 10, 17 (today) | 14 | 14 | 14/17 | 14 |',
+  '| 21 | stop, weekdays, limit 2 drinks, created 2026-10-12 | Oct 12: 1, 13: 3, 14: 2, 15: 0, 16: 2 | 4 | 4 | 4/5 | 4 |',
+  '| 22 | stop, 5 clean days a week, limit 0, created 2026-09-27 | clean Sep 27, 28, 30, Oct 1, 2, 4, 5, 9, 10, 11, 13, 14, 15, 16; slips Sep 29, Oct 3, 6, 7, 8, 12 | 2 | 2 | 1/2 | 14 |',
   '| 23 | 3 per week, created 2026-09-20 | Sep 21, 23, 25, 28, 30, Oct 5, 7, 12, 14, 16 | 1 | 1 | 1/3 | 10 |',
   '| 24 | 3 per week, created 2026-09-27 | Sep 28, 30, Oct 2, 7, 12, 14, 16 | 1 | 1 | 1/2 | 7 |',
-  '| 25 | stop, every day, limit 0, created 2026-10-01 | slips Oct 15, 16 | 0 | 14 | 14/16 | 14 |',
+  '| 25 | stop, every day, limit 0, created 2026-10-01 | clean Oct 1–14; slips Oct 15, 16 | 0 | 14 | 14/16 | 14 |',
   '| 26 | 5 per week, created 2026-09-27 | Sep 28, 29, 30, Oct 1, 2, 5, 6, 7, 8, 9, 12 | 0 | 2 | 2/2 | 11 |',
-  '| 27 | 3 per week, created 2026-09-20 | Sep 21, 23, 25, 28, 30, Oct 5, 7, 12, 14 | 0 | 1 | 1/3 | 9 |'
+  '| 27 | 3 per week, created 2026-09-20 | Sep 21, 23, 25, 28, 30, Oct 5, 7, 12, 14 | 0 | 1 | 1/3 | 9 |',
+  '| 28 | stop, every day, limit 0, created 2026-10-01 | clean Oct 1–13; nothing logged Oct 14–16 | 0 | 13 | 13/16 | 13 |',
+  '| 29 | stop, every day, limit 0, created 2026-10-01 | clean Oct 1–14, 16; nothing logged Oct 15 | 15 | 15 | 15/16 | 15 |'
 ];
 
 const DEFAULT_TODAY = '2026-10-17'; // a Saturday
@@ -67,14 +69,23 @@ function parseRow(row) {
     else throw new Error('row ' + n + ': cannot read "' + token + '"');
   }
   if (log !== 'none') {
-    // A logged day is done (amount at goal) unless an amount is given; a slip is one over the limit.
+    // A logged day is done (amount at goal) unless an amount is given; a slip is one over the limit;
+    // "clean" days carry 0, the mark; "nothing logged" days are left out. Ranges run Oct 1–4.
     const fallback = habit.direction === 'stop' ? habit.goal.amount + 1 : habit.goal.amount;
-    let month = null;
-    for (const item of log.replace(/^slips /, '').split(', ')) {
-      m = /^(?:([A-Z][a-z]{2}) )?(\d+)(?:: (\d+))?(?: \([^)]*\))?$/.exec(item);
-      if (!m) throw new Error('row ' + n + ': cannot read log item "' + item + '"');
-      if (m[1]) month = MONTHS[m[1]];
-      habit.log['2026-' + String(month).padStart(2, '0') + '-' + m[2].padStart(2, '0')] = m[3] ? +m[3] : fallback;
+    for (const segment of log.split('; ')) {
+      let kind = 'default', items = segment, k;
+      if ((k = /^(clean|slips|nothing logged) (.*)$/.exec(segment))) { kind = k[1]; items = k[2]; }
+      let month = null;
+      for (const item of items.split(', ')) {
+        m = /^(?:([A-Z][a-z]{2}) )?(\d+)(?:–(\d+))?(?:: (\d+))?(?: \([^)]*\))?$/.exec(item);
+        if (!m) throw new Error('row ' + n + ': cannot read log item "' + item + '"');
+        if (m[1]) month = MONTHS[m[1]];
+        for (let d = +m[2], last = m[3] ? +m[3] : +m[2]; d <= last; d++) {
+          const key = '2026-' + String(month).padStart(2, '0') + '-' + String(d).padStart(2, '0');
+          if (kind === 'nothing logged') continue;
+          habit.log[key] = m[4] != null ? +m[4] : kind === 'clean' ? 0 : fallback;
+        }
+      }
     }
   }
   return { n: +n, habit, today, expect: { streak: +streak, best: +best, completion: completionText, total: +totalText } };
@@ -146,6 +157,8 @@ test('forgiven is true only while a streak is carrying one forgiven miss', () =>
   check(17, true);  // last week one short, this week open
   check(23, false); // two short weeks in a row
   check(20, true);  // a slip today, yesterday clean
+  check(28, false); // two days unopened in a row
+  check(29, false); // one day forgotten and already recovered from: nothing left to carry
 });
 
 // ---------------------------------------------------------------------------
@@ -158,7 +171,7 @@ test('an archived habit is frozen as it stood on the archive day, an open day in
     schedule: { kind: 'days', days: [1, 2, 3, 4, 5] }, goal: { amount: 1, unit: 'times' },
     log: { '2026-10-12': 1, '2026-10-13': 1, '2026-10-14': 1, '2026-10-15': 1 }
   };
-  const stop = { ...start, direction: 'stop', goal: { amount: 0, unit: 'times' }, log: { '2026-10-13': 1 } };
+  const stop = { ...start, direction: 'stop', goal: { amount: 0, unit: 'times' }, log: { '2026-10-12': 0, '2026-10-13': 1, '2026-10-14': 0, '2026-10-15': 0 } };
   for (const habit of [start, stop]) {
     const onTheDay = rules.figures(habit, '2026-10-16'); // Friday the 16th still open when archived
     assert.deepEqual(rules.figures(habit, '2026-10-17'), onTheDay);
@@ -175,7 +188,9 @@ test('figures for a six-year daily habit come back fast enough for a tap', () =>
     direction: 'start', created: '2020-10-17', archived: null,
     schedule: { kind: 'days', days: [0, 1, 2, 3, 4, 5, 6] }, goal: { amount: 1, unit: 'times' }, log
   };
-  const stop = { ...habit, direction: 'stop', goal: { amount: 0, unit: 'times' }, log: {} };
+  const marked = {};
+  for (const d of Object.keys(log)) marked[d] = 0; // every day marked clean
+  const stop = { ...habit, direction: 'stop', goal: { amount: 0, unit: 'times' }, log: marked };
   const t0 = process.hrtime.bigint();
   const f = rules.figures(habit, '2026-10-17');
   const g = rules.figures(stop, '2026-10-17');

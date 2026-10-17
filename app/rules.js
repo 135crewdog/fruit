@@ -13,7 +13,8 @@
  *
  * Vocabulary (CLAUDE.md, "The rules"):
  *   done       a start habit's day at or above its goal, or a stop habit's day
- *              at or below its limit (the spec calls that "clean");
+ *              that was logged with slips at or below its limit (the spec calls
+ *              that "clean"; a 0 is the mark for a clean day with no slips);
  *   partial    a start habit's day above 0 and below its goal;
  *   missed     a scheduled day that settled without being done;
  *   unsettled  today, while its outcome is still open.
@@ -96,13 +97,20 @@ function amountOn(habit, iso) {
   return typeof a === 'number' && isFinite(a) && a > 0 ? a : 0;
 }
 
+/** True when the day has an entry at all. A stop habit's 0 is an entry: the day was marked clean. */
+function logged(habit, iso) {
+  var a = habit.log ? habit.log[iso] : undefined;
+  return typeof a === 'number' && isFinite(a) && a >= 0;
+}
+
 /** 'done' | 'partial' | 'missed' | 'unsettled' | 'future'. Says nothing about the schedule. */
 function dayState(habit, iso, today) {
   if (iso > today) return 'future';
   var a = amountOn(habit, iso);
   if (isStop(habit)) {
     if (a > habit.goal.amount) return 'missed';
-    return iso === today ? 'unsettled' : 'done';
+    if (logged(habit, iso)) return 'done';
+    return iso === today ? 'unsettled' : 'missed';
   }
   if (a >= habit.goal.amount) return 'done';
   if (iso === today) return 'unsettled';
@@ -324,6 +332,7 @@ if (typeof module !== 'undefined' && module.exports) {
     weekStart: weekStart,
     firstWeekStart: firstWeekStart,
     isScheduled: isScheduled,
+    logged: logged,
     dayState: dayState,
     weekStatus: weekStatus,
     currentStreak: currentStreak,

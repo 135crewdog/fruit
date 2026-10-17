@@ -141,14 +141,24 @@ async function main() {
     await page.waitForSelector('#screen-edit:not(.open)');
     const snack = page.locator('#today .row', { hasText: 'snack after dinner' });
     await snack.waitFor();
-    assert.equal(await snack.evaluate((n) => n.classList.contains('clean')), true, 'a stop row starts clean');
-    assert.equal((await snack.locator('.stepper .n').textContent()).trim(), 'Clean');
+    assert.equal(await snack.evaluate((n) => n.classList.contains('clean')), false, 'a stop row is plain until the day is marked');
+    assert.equal((await snack.locator('.stepper .n').textContent()).trim(), 'Clean?');
+    assert.equal(await snack.locator('.stepper button[aria-label="Take back the mark"]').isDisabled(), true);
+    await snack.locator('.stepper button[aria-label="Mark the day clean"]').click();
+    await page.waitForSelector('#today .row.clean');
+    assert.equal((await snack.locator('.stepper .n').textContent()).trim(), 'Clean ✓');
+    assert.match((await snack.locator('.meta').textContent()).trim(), /^1 day\b/, 'marking today clean settles it, so it counts at once');
     await snack.locator('.stepper button[aria-label="Slipped"]').click();
     await page.waitForSelector('#today .row.over');
     assert.equal((await snack.locator('.stepper .n').textContent()).trim(), '1 slip');
     await shot('06-today-three');
     await snack.locator('.stepper button[aria-label="Undo a slip"]').click();
-    await page.waitForSelector('#today .row.over', { state: 'detached' });
+    await page.waitForSelector('#today .row.clean');
+    await snack.locator('.stepper button[aria-label="Take back the mark"]').click();
+    await page.waitForSelector('#today .row.clean', { state: 'detached' });
+    assert.equal((await snack.locator('.stepper .n').textContent()).trim(), 'Clean?');
+    const snackLog = await page.evaluate(() => JSON.parse(localStorage.getItem('fruit.data')).habits.find((h) => h.action === 'snack after dinner').log);
+    assert.deepEqual(snackLog, {}, 'taking the mark back removes the entry');
     // On its calendar, a day the stop habit is not scheduled for cannot be tapped
     await snack.locator('.text').click();
     await page.waitForSelector('#screen-habit.open');

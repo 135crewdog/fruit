@@ -83,6 +83,10 @@ test('withAmount sets or removes one day and never mutates the old log', () => {
   assert.deepEqual(app.withAmount(next, '2026-10-15', 0), { '2026-10-16': 3 });
   assert.deepEqual(app.withAmount(next, '2026-10-15', NaN), { '2026-10-16': 3 });
   assert.deepEqual(app.withAmount(undefined, '2026-10-17', 1), { '2026-10-17': 1 });
+  // A stop habit keeps a 0: the mark for a clean day. NaN takes the mark back.
+  assert.deepEqual(app.withAmount({}, '2026-10-17', 0, true), { '2026-10-17': 0 });
+  assert.deepEqual(app.withAmount({ '2026-10-17': 0 }, '2026-10-17', NaN, true), {});
+  assert.deepEqual(app.withAmount({}, '2026-10-17', 0, false), {});
 });
 
 test('month grid helpers', () => {
