@@ -225,6 +225,16 @@ test('scheduleWords follows the "Schedule in words" table', () => {
   assert.equal(w({ kind: 'weekly', times: 5 }, { amount: 0, unit: 'times' }, 'stop'), '5 days a week');
 });
 
+test('identityWords and actionWords split the statement for a list row', () => {
+  const start = { direction: 'start', action: 'wake up', cue: 'before 6 a.m.', identity: 'a morning person' };
+  const stop = { direction: 'stop', action: 'drink alcohol', cue: 'on a weeknight', identity: 'a clear-headed person' };
+  assert.equal(rules.identityWords(start), 'Become a morning person');
+  assert.equal(rules.actionWords(start), 'wake up before 6 a.m.');
+  assert.equal(rules.identityWords(stop), 'Become a clear-headed person');
+  assert.equal(rules.actionWords(stop), 'not drink alcohol on a weeknight');
+  assert.equal(rules.actionWords({ direction: 'start', action: 'floss', cue: '', identity: 'x' }), 'floss');
+});
+
 test('statement assembles the sentence for both directions', () => {
   assert.equal(
     rules.statement({ direction: 'start', action: 'get out of bed', cue: 'before 6 a.m.', identity: 'a morning person' }),

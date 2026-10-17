@@ -146,7 +146,7 @@ The app describes a schedule in one phrase, built by one function in `rules.js`:
 
 ### An iPhone app shell, after Show Time
 
-The app is installed to the home screen and behaves like an iOS app. `display: standalone`, portrait, the viewport `width=device-width, initial-scale=1, viewport-fit=cover` with no user zoom, `apple-mobile-web-app-status-bar-style` black-translucent, the root sized to the viewport with `env(safe-area-inset-*)` padding, `overflow: hidden` on the body, and each page scrolling inside itself. Two top-level pages sit side by side and slide (`translateX`, 0.3s) when a tab is tapped or a horizontal swipe dominates the vertical by at least 50px. Detail and edit screens push in from the right and have a back chevron; Settings presents as a sheet. With reduced motion on, slides become cuts. On anything wider than a phone the shell and its screens are capped at 430px and centered, as Show Time is; the rest is page background.
+The app is installed to the home screen and behaves like an iOS app. `display: standalone`, portrait, the viewport `width=device-width, initial-scale=1, viewport-fit=cover` with no user zoom, `apple-mobile-web-app-status-bar-style` black-translucent, the root a fixed element filling the viewport (`inset: 0`, never a viewport unit: `100dvh` falls short of the screen in an iOS home-screen app and left a band beneath the tab bar) with `env(safe-area-inset-*)` padding, the body painted in the page background, `overflow: hidden` on the body, and each page scrolling inside itself. The header is one line and one height on both pages, so the slide between them is steady; the date on Today sits in the page, not the header. Two top-level pages sit side by side and slide (`translateX`, 0.3s) when a tab is tapped or a horizontal swipe dominates the vertical by at least 50px. Detail and edit screens push in from the right and have a back chevron; Settings presents as a sheet. With reduced motion on, slides become cuts. On anything wider than a phone the shell and its screens are capped at 430px and centered, as Show Time is; the rest is page background.
 
 Apollo's "no app shell" rule does **not** apply here, and the reason is written down as the HIG's Baseline asks: that rule belongs to a broad app that must look right on any device. Low-Hanging Fruit is focused on one iPhone, so it sizes itself to the phone the way Show Time does. An iPad or desktop gets whatever falls out and is not a target. The shell is the first thing checked on the phone: no band of page beneath the app, the status bar and home indicator respected, the keyboard not covering the field being typed in.
 
@@ -162,7 +162,9 @@ Where Show Time uses iOS blue and Apollo its due-date colors, Low-Hanging Fruit 
 | `--pear` | `#d9c95a` yellow | a partial day, the active segment, the picked weekday |
 | `--spot` | `#b89a6e` pale brown | a missed scheduled day, the "spots on a ripe pear" |
 
-These are first values, to be tuned on the iPhone in light and dark before milestone 3 closes. The **icon** is the name in title case, extra-bold, with the peach emoji as the hyphen (`Low 🍑 / Hanging / Fruit`), on a mango gradient from green through orange to red, after Apollo's gradient icon. It is baked to PNG by `tools/icon.js` so every device shows the same picture; there is no SVG icon. Everything the app says is sentence case; section titles are uppercase as a visual device; proper nouns keep their capitals. Every date a human reads is `DD-Mmm-YY` (`17-Oct-26`); the Today title adds the weekday (`Saturday 17-Oct-26`).
+These are first values, to be tuned on the iPhone in light and dark before milestone 3 closes. The **icon** is the name in title case, extra-bold, with the peach emoji as the hyphen (`Low 🍑 / Hanging / Fruit`), on a mango gradient from green through orange to red, after Apollo's gradient icon. It is baked to PNG by `tools/icon.js` so every device shows the same picture; there is no SVG icon. Everything the app says is sentence case; section titles are uppercase as a visual device; proper nouns keep their capitals. Every date a human reads is `DD-Mmm-YY` (`17-Oct-26`); the Today date adds the weekday (`Saturday 17-Oct-26`).
+
+**Every list row leads with the identity**, on Today and Habits alike: `Become a clear-headed person` in 17px, built from the identity field the way the statement is, with what the day asks beneath it in gray, the action with its cue (`wake up before 6 a.m.`; `not drink alcohol on a weeknight` for a stop habit). The identity is the point of the habit and the action is the chore, so the action never heads a row. Two habits that share an identity read as twins at a glance and the gray line tells them apart. The detail screen shows the whole sentence.
 
 ### Navigation
 
@@ -170,7 +172,7 @@ An iOS tab bar at the bottom with two tabs, **Today** and **Habits**, and the ge
 
 ### Today
 
-The large title "Today" with the local date beneath. A card of today's scheduled habits, one row each: the action in 17px with the cue beneath in gray, and on the right the control for its goal:
+The title "Today" in the header, the local date with its weekday as the first line of the page. A card of today's scheduled habits, one row each: the identity in 17px with the action and cue beneath in gray, and on the right the control for its goal:
 
 - once a day: a check, tapped to log, tapped again to undo;
 - a count per day: `+` with the count beside it (`3 of 8`), `−` to undo one;
@@ -181,7 +183,7 @@ A done row turns `--leaf` and shows the current streak as `10 days` (`1 day`; `3
 
 ### Habits
 
-Every active habit in creation order, each row the action over the schedule in words, the current streak on the right. An Add button. An Archived group at the bottom, collapsed, with the archived habits. Tap a row to push its detail.
+Every active habit in creation order, each row the identity over one gray line, the action and cue then the schedule in words (`wake up before 6 a.m. · Weekdays`), the current streak on the right. An Add button. An Archived group at the bottom, collapsed, with the archived habits. Tap a row to push its detail.
 
 ### Habit (pushed)
 
@@ -250,7 +252,7 @@ Reuse, not reinvention: the shell, the sliding pages and the swipe come from Sho
 - **Measured amounts are numbers.** Read the field's `valueAsNumber`; `NaN` or 0 removes the day.
 - **POST with `Content-Type: text/plain`** to the script, as in Apollo.
 - **Bump both version strings** with every change under `app/`, and `SCRIPT_VERSION` with every change to `Code.js`.
-- **The shell is iOS-sized on purpose.** `100vh`/`dvh`, safe-area insets and `overflow: hidden` are expected here. See "An iPhone app shell".
+- **The shell is iOS-sized on purpose.** A fixed root filling the viewport, safe-area insets and `overflow: hidden` are expected here. Never size it with `100vh` or `100dvh`: in an iOS home-screen app `dvh` comes out short and leaves a band under the tab bar. See "An iPhone app shell".
 
 ## Deliberately not in the app
 

@@ -9,7 +9,7 @@
  */
 'use strict';
 
-var APP_VERSION = '2026.10.17.7';
+var APP_VERSION = '2026.10.17.8';
 var STORAGE = { settings: 'fruit.settings', data: 'fruit.data', backup: 'fruit.backup' };
 var MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 var LONG_DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
@@ -311,10 +311,9 @@ if (typeof document !== 'undefined') {
 
     function renderHeader() {
       $('title').textContent = ui.tab === 0 ? 'Today' : 'Habits';
-      $('subtitle').textContent = ui.tab === 0 ? longDate(ui.today, R.weekday(ui.today)) : '';
     }
 
-    /** One row: the statement's action and cue, a status line, and the control for the goal. */
+    /** One row: the identity, what the day asks beneath it, a status line, and the control for the goal. */
     function habitRow(h, date, opts) {
       var kind = controlKind(h), st = R.dayState(h, date, ui.today), stop = h.direction === 'stop';
       var row = el('div', 'row');
@@ -322,8 +321,8 @@ if (typeof document !== 'undefined') {
       else if (st === 'done') row.classList.add('done');
 
       var text = button('text', null, function () { openHabit(h.id); });
-      text.appendChild(el('span', 'action', h.action));
-      if (h.cue) text.appendChild(el('span', 'cue', h.cue));
+      text.appendChild(el('span', 'lead', R.identityWords(h)));
+      text.appendChild(el('span', 'sub', R.actionWords(h)));
       var meta = [];
       if (st === 'done') meta.push(streakWords(h, R.currentStreak(h, ui.today)));
       if (R.forgiven(h, ui.today)) meta.push(stop ? "Don't slip twice" : "Don't miss twice");
@@ -388,6 +387,8 @@ if (typeof document !== 'undefined') {
     function renderToday() {
       var root = $('today');
       root.textContent = '';
+      // The date lives in the page, not the header, so the header is one height on both pages.
+      root.appendChild(el('p', 'date', longDate(ui.today, R.weekday(ui.today))));
       var live = active();
       if (!live.length) {
         var empty = el('div', 'empty', 'No habits yet.');
@@ -425,8 +426,8 @@ if (typeof document !== 'undefined') {
     function listRow(h) {
       var row = el('div', 'row');
       var text = button('text', null, function () { openHabit(h.id); });
-      text.appendChild(el('span', 'action', h.action));
-      text.appendChild(el('span', 'meta', R.scheduleWords(h) + (h.archived ? ' · archived ' + formatDisplayDate(h.archived) : '')));
+      text.appendChild(el('span', 'lead', R.identityWords(h)));
+      text.appendChild(el('span', 'sub', R.actionWords(h) + ' · ' + R.scheduleWords(h) + (h.archived ? ' · archived ' + formatDisplayDate(h.archived) : '')));
       row.appendChild(text);
       row.appendChild(el('span', 'streak', streakWords(h, R.currentStreak(h, ui.today))));
       return row;

@@ -54,7 +54,7 @@ async function main() {
   try {
     await page.goto(url);
     assert.equal(await text('#title'), 'Today');
-    assert.equal(await text('#subtitle'), app.longDate(TODAY, rules.weekday(TODAY)));
+    assert.equal(await text('#today .date'), app.longDate(TODAY, rules.weekday(TODAY)));
     assert.match(await text('#today'), /No habits yet/);
     await shot('01-empty');
 
@@ -69,8 +69,9 @@ async function main() {
     await shot('02-new-habit');
     await page.click('#save-habit');
     await page.waitForSelector('#screen-edit:not(.open)');
-    await page.waitForSelector('#today .row .action');
-    assert.equal(await text('#today .row .action'), 'floss');
+    await page.waitForSelector('#today .row .lead');
+    assert.equal(await text('#today .row .lead'), 'Become someone who keeps their teeth');
+    assert.equal(await text('#today .row .sub'), 'floss');
     assert.equal(await page.getAttribute('#today .row .check', 'aria-pressed'), 'false');
     await page.click('#today .row .check');
     await page.waitForSelector('#today .row.done');
