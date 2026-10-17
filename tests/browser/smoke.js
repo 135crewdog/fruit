@@ -313,6 +313,15 @@ async function main() {
     assert.match(await text('#today'), /No habits yet/);
     assert.equal(await page.evaluate(() => localStorage.getItem('fruit.data')), null);
 
+    // On a wide screen the shell is a phone's width, centered
+    const wide = await context.newPage();
+    await wide.setViewportSize({ width: 1024, height: 768 });
+    await wide.goto(url);
+    const box = await wide.evaluate(() => { const r = document.getElementById('app').getBoundingClientRect(); return { w: r.width, l: r.left }; });
+    assert.equal(box.w, 430, 'the shell is capped at a phone width');
+    assert.equal(box.l, (1024 - 430) / 2, 'and centered');
+    await wide.close();
+
     assert.deepEqual(errors, [], 'no page errors');
     console.log('smoke test passed');
   } finally {
