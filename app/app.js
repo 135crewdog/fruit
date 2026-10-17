@@ -9,7 +9,7 @@
  */
 'use strict';
 
-var APP_VERSION = '2026.10.17.4';
+var APP_VERSION = '2026.10.17.5';
 var STORAGE = { settings: 'fruit.settings', data: 'fruit.data', backup: 'fruit.backup' };
 var MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 var LONG_DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
@@ -123,7 +123,7 @@ function validateDraft(d) {
 
 /**
  * The log with one day set: a new object. The day is removed when the amount is not above 0,
- * except that with keepZero (a stop habit) a 0 is kept: it is the mark for a clean day.
+ * except that with keepZero (a stop habit) a 0 is kept: it is the mark for a day with nothing to report.
  */
 function withAmount(log, date, amount, keepZero) {
   var next = {};
@@ -348,14 +348,23 @@ if (typeof document !== 'undefined') {
         stepper.appendChild(plus);
         row.appendChild(stepper);
       } else if (kind === 'slips') {
-        // Unlogged: the middle is the mark, "Clean?". Logged: the middle reports; − at zero takes the mark back.
+        // No word names the state. Unlogged: the middle is an empty ring; a tap marks the day with nothing
+        // to report, and the middle becomes a check (limit 0) or "0 of 2". + logs a slip, − takes one back,
+        // and − at zero, or a tap on the check, takes the mark back.
         var lim = h.goal.amount, marked = R.logged(h, date);
         var box = el('div', 'stepper');
         var back = button(null, '−', function () { setAmount(h, date, a > 0 ? a - 1 : NaN); }, a > 0 ? 'Undo a slip' : 'Take back the mark');
         back.disabled = !marked;
         box.appendChild(back);
-        if (!marked) box.appendChild(button('n mark', 'Clean?', function () { setAmount(h, date, 0); }, 'Mark the day clean'));
-        else box.appendChild(el('span', 'n', a === 0 ? 'Clean ✓' : (lim > 0 ? a + ' of ' + lim : a + (a === 1 ? ' slip' : ' slips'))));
+        if (!marked) {
+          var ring = button('n mark', null, function () { setAmount(h, date, 0); }, 'Mark the day: nothing to report');
+          ring.appendChild(el('i', 'ring'));
+          box.appendChild(ring);
+        } else if (a === 0 && lim === 0) {
+          box.appendChild(button('n mark on', '✓', function () { setAmount(h, date, NaN); }, 'Take back the mark'));
+        } else {
+          box.appendChild(el('span', 'n', lim > 0 ? a + ' of ' + lim : String(a)));
+        }
         box.appendChild(button(null, '+', function () { setAmount(h, date, a + 1); }, 'Slipped'));
         row.appendChild(box);
       } else {
@@ -500,7 +509,7 @@ if (typeof document !== 'undefined') {
       figs.appendChild(figure(String(f.streak), 'Current streak', streakWords(h, f.streak).replace(/^\d+ /, '')));
       figs.appendChild(figure(String(f.best), 'Best streak', streakWords(h, f.best).replace(/^\d+ /, '')));
       figs.appendChild(figure(percentWords(f.completion) || '—', 'Completion', f.completion ? f.completion.done + ' of ' + f.completion.scheduled : 'nothing to count yet'));
-      figs.appendChild(figure(String(f.total), 'Total', h.direction === 'stop' ? 'clean days' : 'days done'));
+      figs.appendChild(figure(String(f.total), 'Total', h.direction === 'stop' ? (h.goal.amount > 0 ? 'days within the limit' : 'days without a slip') : 'days done'));
       var fsec = el('div', 'section');
       fsec.appendChild(figs);
       root.appendChild(fsec);
@@ -543,7 +552,8 @@ if (typeof document !== 'undefined') {
       card.appendChild(grid);
 
       var legend = el('div', 'legend');
-      [['l-done', h.direction === 'stop' ? 'clean' : 'done'], ['l-partial', 'partial'], ['l-missed', h.direction === 'stop' ? 'over the limit' : 'missed']].forEach(function (p) {
+      var limited = h.direction === 'stop' && h.goal.amount > 0;
+      [['l-done', h.direction === 'stop' ? (limited ? 'within the limit' : 'no slip') : 'done'], ['l-partial', 'partial'], ['l-missed', h.direction === 'stop' ? (limited ? 'over the limit' : 'a slip') : 'missed']].forEach(function (p) {
         if (h.direction === 'stop' && p[0] === 'l-partial') return;
         var li = el('span');
         li.appendChild(el('i', p[0]));
@@ -611,13 +621,17 @@ if (typeof document !== 'undefined') {
       var stop = d.direction === 'stop';
       document.querySelectorAll('[data-direction]').forEach(function (b) { b.classList.toggle('on', b.getAttribute('data-direction') === d.direction); });
       $('action-label').textContent = stop ? 'I will not…' : 'I will…';
+      // The placeholders follow the direction, with the spec's own two examples.
+      $('action').placeholder = stop ? 'drink more than two beers' : 'get out of bed';
+      $('cue').placeholder = stop ? 'on a weeknight' : 'before 6 a.m.';
+      $('identity').placeholder = stop ? 'a clear-headed person' : 'a morning person';
       $('kind-every').classList.toggle('hidden', stop);
       if (stop && d.kind === 'every') d.kind = 'days';
       document.querySelectorAll('[data-kind]').forEach(function (b) { b.classList.toggle('on', b.getAttribute('data-kind') === d.kind); });
       $('sched-days').classList.toggle('hidden', d.kind !== 'days');
       $('sched-weekly').classList.toggle('hidden', d.kind !== 'weekly');
       $('sched-every').classList.toggle('hidden', d.kind !== 'every');
-      $('times-label').textContent = stop ? 'Clean days a week' : 'Days a week';
+      $('times-label').textContent = stop ? 'Days a week within the limit' : 'Days a week';
       document.querySelectorAll('[data-day]').forEach(function (b) { b.setAttribute('aria-pressed', d.days.indexOf(Number(b.getAttribute('data-day'))) !== -1 ? 'true' : 'false'); });
       $('goal-title').textContent = stop ? 'Limit' : 'Goal';
       $('amount-label').textContent = stop ? 'At most, a day' : 'A day';
@@ -638,7 +652,7 @@ if (typeof document !== 'undefined') {
       $('edit-error').textContent = '';
       $('sched-words').textContent = v.error ? '' : R.scheduleWords({ direction: v.direction, schedule: v.schedule, goal: v.goal });
       $('goal-hint').textContent = stop
-        ? (Number(d.amount) === 0 ? 'None at all. Mark each day clean, or log a slip.' : 'Mark each day clean, or log the slips; the day is clean while they stay within the limit.')
+        ? (Number(d.amount) === 0 ? 'None at all. Each day, tap the ring when there was nothing to report, or log a slip.' : 'Each day, tap the ring or log the slips; the day counts while they stay within the limit.')
         : (controlKind({ direction: 'start', goal: { amount: Number(d.amount), unit: String(d.unit).trim() || 'times' } }) === 'check'
           ? 'Once a day: a check on the Today page.'
           : (String(d.unit).trim() === 'times' ? 'A counter on the Today page.' : 'A number field on the Today page.'));
