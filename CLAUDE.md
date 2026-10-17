@@ -19,8 +19,8 @@ Ask the user before adding anything that is not in this file. Ideas that were di
 | # | Scope | Status |
 |---|---|---|
 | 1 | This file and `README.md`, agreed and merged. Nothing else. | Done, 2026-10-17 |
-| 2 | `app/rules.js` and `tests/rules.test.js` from the required test tables below. | In review |
-| 3 | The app in `app/`, local only (no backup yet), published to GitHub Pages at `https://135crewdog.github.io/fruit/` and looked at on the iPhone. | |
+| 2 | `app/rules.js` and `tests/rules.test.js` from the required test tables below. | Done, 2026-10-17 |
+| 3 | The app in `app/`, local only (no backup yet), published to GitHub Pages at `https://135crewdog.github.io/fruit/` and looked at on the iPhone. | In review |
 | 4 | `apps-script/Code.js`, the Backup section of Settings, Export and Import, and the guide. | |
 
 ## The data
@@ -175,7 +175,7 @@ The large title "Today" with the local date beneath. A card of today's scheduled
 - a measured amount: a number field with the unit beside it; clearing it undoes;
 - a stop habit: a Slipped `+` (with the count beside it, `1 of 2`, when the limit is above 0), `−` to undo one.
 
-A done row turns `--leaf` and shows the current streak as `10 days` (`1 day`; `3 weeks` for a weekly habit). A stop habit's row is `--leaf` from the start of the day, clean so far, and turns `--spot` once the limit is passed. A row whose streak is carrying a forgiven miss (yesterday's scheduled day missed, or last week one short) says `Don't miss twice` (`Don't slip twice` for a stop habit) in gray under the streak; it is the only nudge the app gives. A second card, collapsed by default, "Not scheduled today", holds the other active habits with the same controls, so a bonus day can be logged. Empty state: "No habits yet" and an Add button. A change is saved at once and reflected at once; the app does the math.
+A done row turns `--leaf` and shows the current streak as `10 days` (`1 day`; `3 weeks` for a weekly habit). A stop habit's row is `--leaf` from the start of the day, clean so far, and turns `--spot` once the limit is passed. A row whose streak is carrying a forgiven miss (yesterday's scheduled day missed, or last week one short) says `Don't miss twice` (`Don't slip twice` for a stop habit) in gray under the streak; it is the only nudge the app gives. A second card, collapsed by default, "Not scheduled today", holds the other active start habits with the same controls, so a bonus day can be logged; a stop habit asks nothing on an unscheduled day, so it is not listed there. Empty state: "No habits yet" and an Add button. A change is saved at once and reflected at once; the app does the math.
 
 ### Habits
 

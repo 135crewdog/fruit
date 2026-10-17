@@ -1,0 +1,271 @@
+/* Low-Hanging Fruit: Show Time's and Apollo's iOS-style system, with the pear palette as the accent. */
+
+:root {
+  --bg: #f2f2f7;
+  --elev: #ffffff;
+  --border: #c6c6c8;
+  --text: #000000;
+  --text2: #656569;
+  --fill: #e5e5ea;
+  --destructive: #ff3b30;
+  /* Pear palette: first values, to be tuned on the phone. Dark text on all of them. */
+  --leaf: #b5c96b;
+  --pear: #d9c95a;
+  --spot: #b89a6e;
+  --on-accent: #1c1c1e;
+  --shadow: rgba(0, 0, 0, 0.1);
+  color-scheme: light;
+}
+:root[data-theme="dark"],
+:root:not([data-theme="light"]):not([data-theme="dark"]).system-dark {
+  --bg: #000000;
+  --elev: #1c1c1e;
+  --border: #38383a;
+  --text: #ffffff;
+  --text2: #98989d;
+  --fill: #48484a;
+  --destructive: #ff453a;
+  --leaf: #9fb35a;
+  --pear: #c4b44a;
+  --spot: #a3875e;
+  --shadow: rgba(0, 0, 0, 0.4);
+  color-scheme: dark;
+}
+
+/* The shell. This is a focused iPhone app, after Show Time: the root is the viewport, the
+   body never scrolls, each page scrolls inside itself, and the safe areas are padded so the
+   header sits under the status bar and the tab bar above the home indicator. */
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; height: 100%; }
+body {
+  height: 100%; overflow: hidden; overscroll-behavior: none;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Helvetica Neue", sans-serif;
+  -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale;
+  background: var(--elev); color: var(--text);
+}
+button, input, select { font-family: inherit; touch-action: manipulation; }
+button, input:not([type="checkbox"]), select { -webkit-appearance: none; appearance: none; }
+.hidden { display: none !important; }
+
+.app {
+  position: fixed; inset: 0;
+  height: 100vh; height: 100dvh;
+  display: flex; flex-direction: column;
+  padding-top: env(safe-area-inset-top);
+  background: var(--bg);
+}
+
+/* Header: the title follows the tab; the subtitle is today's date on the Today page. */
+.header {
+  flex: none; background: var(--elev); border-bottom: 1px solid var(--border);
+  padding: 12px 20px; min-height: 68px;
+  display: flex; align-items: center; justify-content: space-between; position: relative;
+}
+.header-text { min-width: 0; }
+.title { font-size: 34px; font-weight: 700; letter-spacing: -0.5px; line-height: 1.1; }
+.subtitle { font-size: 15px; color: var(--text2); margin-top: 2px; font-variant-numeric: tabular-nums; }
+.subtitle:empty { display: none; }
+.title.small { font-size: 17px; font-weight: 600; letter-spacing: 0; position: absolute; left: 50%; transform: translateX(-50%); }
+.icon-btn {
+  flex: none; background: var(--fill); border: none; border-radius: 20px;
+  width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;
+  font-size: 20px; color: var(--text); cursor: pointer;
+}
+.text-btn { background: transparent; border: none; color: var(--text); font-size: 17px; font-weight: 600; padding: 8px 0; cursor: pointer; }
+.header-spacer { width: 60px; }
+
+/* The two pages sit side by side and slide. */
+.pages-wrap { flex: 1; min-height: 0; overflow: hidden; position: relative; }
+.pages { display: flex; height: 100%; transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+.page, .scroll {
+  min-width: 100%; height: 100%; overflow-y: auto; -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain; padding: 20px 20px 32px;
+}
+
+/* Tab bar */
+.tabbar {
+  flex: none; display: flex; background: var(--elev); border-top: 1px solid var(--border);
+  padding: 6px 0 calc(6px + env(safe-area-inset-bottom));
+}
+.tab {
+  flex: 1; background: transparent; border: none; color: var(--text2); cursor: pointer;
+  display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 4px 0; font-size: 10px; font-weight: 500;
+}
+.tab svg { width: 26px; height: 26px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.tab.on { color: var(--text); }
+.tab.on svg { stroke-width: 2.2; }
+
+/* Pushed screens slide in from the right; the sheet rises from the bottom. Both cover the shell. */
+.screen, .sheet {
+  position: fixed; inset: 0; z-index: 5; display: flex; flex-direction: column;
+  background: var(--bg); padding-top: env(safe-area-inset-top);
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), visibility 0.3s;
+  visibility: hidden;
+}
+.screen { transform: translateX(100%); }
+.sheet { transform: translateY(100%); }
+.screen.open, .sheet.open { transform: none; visibility: visible; }
+.screen .scroll, .sheet .scroll { flex: 1; min-height: 0; padding-bottom: calc(32px + env(safe-area-inset-bottom)); }
+@media (prefers-reduced-motion: reduce) {
+  .pages, .screen, .sheet { transition: none; }
+}
+
+/* Sections and cards */
+.section { margin-bottom: 24px; }
+.section-title {
+  font-size: 13px; font-weight: 400; color: var(--text2);
+  margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px;
+}
+.card { background: var(--elev); border-radius: 10px; padding: 16px; border: 1px solid var(--border); }
+.card.list { padding: 0 16px; }
+.hint { display: block; font-size: 13px; color: var(--text2); margin-top: 12px; line-height: 1.5; }
+.hint:empty { display: none; }
+.error-text { color: var(--destructive); }
+.empty { text-align: center; color: var(--text2); padding: 40px 8px; line-height: 1.5; }
+.empty .btn { margin-top: 16px; }
+
+/* Group headers (Not scheduled today, Archived) collapse. */
+.group-head {
+  width: 100%; display: flex; justify-content: space-between; align-items: center;
+  background: transparent; border: none; color: var(--text2); cursor: pointer;
+  font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px; padding: 0 0 8px;
+}
+.group-head .chev { transition: transform 0.2s; }
+.group-head[aria-expanded="true"] .chev { transform: rotate(90deg); }
+
+/* Habit rows, on Today and on Habits alike */
+.row { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--border); }
+.row:last-child { border-bottom: none; }
+.row .text { flex: 1; min-width: 0; background: transparent; border: none; text-align: left; color: var(--text); padding: 0; cursor: pointer; font: inherit; }
+.row .action { display: block; font-size: 17px; font-weight: 500; line-height: 1.3; }
+.row .cue, .row .meta { display: block; font-size: 13px; color: var(--text2); margin-top: 2px; }
+.row .meta b { font-weight: 600; color: var(--text); }
+.row .streak { font-size: 15px; color: var(--text2); white-space: nowrap; font-variant-numeric: tabular-nums; }
+/* A done row turns leaf; a stop row is leaf by default and spot once over the limit. The row
+   bleeds to the card's edges so the color reads as the whole row. */
+.row.done, .row.clean { background: var(--leaf); margin: 0 -16px; padding-left: 16px; padding-right: 16px; border-bottom-color: rgba(0, 0, 0, 0.08); }
+.row.over { background: var(--spot); margin: 0 -16px; padding-left: 16px; padding-right: 16px; border-bottom-color: rgba(0, 0, 0, 0.08); }
+.row.done .text, .row.clean .text, .row.over .text, .row.done .cue, .row.clean .cue, .row.over .cue, .row.done .meta, .row.clean .meta, .row.over .meta, .row.done .streak, .row.clean .streak, .row.over .streak { color: var(--on-accent); }
+.card.list .row.done:first-child, .card.list .row.clean:first-child, .card.list .row.over:first-child { border-radius: 10px 10px 0 0; }
+.card.list .row.done:last-child, .card.list .row.clean:last-child, .card.list .row.over:last-child { border-radius: 0 0 10px 10px; }
+.card.list .row.done:only-child, .card.list .row.clean:only-child, .card.list .row.over:only-child { border-radius: 10px; }
+
+/* Controls on a row */
+.check {
+  flex: none; width: 40px; height: 40px; border-radius: 20px; border: 2px solid var(--border);
+  background: var(--elev); color: transparent; font-size: 22px; line-height: 1; cursor: pointer;
+}
+.row.done .check { background: var(--on-accent); border-color: var(--on-accent); color: var(--leaf); }
+.stepper { flex: none; display: flex; align-items: center; background: var(--fill); border-radius: 10px; padding: 2px; }
+.stepper button { width: 40px; height: 36px; border: none; border-radius: 8px; background: transparent; color: var(--text); font-size: 22px; line-height: 1; cursor: pointer; }
+.stepper button:disabled { color: var(--text2); opacity: 0.5; cursor: default; }
+.stepper .n { min-width: 52px; text-align: center; font-size: 15px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.stepper.partial { background: var(--pear); }
+.stepper.partial button, .stepper.partial .n { color: var(--on-accent); }
+.row.done .stepper, .row.clean .stepper, .row.over .stepper { background: rgba(0, 0, 0, 0.12); }
+.row.done .stepper button, .row.done .stepper .n, .row.clean .stepper button, .row.clean .stepper .n, .row.over .stepper button, .row.over .stepper .n { color: var(--on-accent); }
+.amount { flex: none; display: flex; align-items: center; gap: 6px; }
+.amount input { width: 84px; padding: 8px 10px; background: var(--fill); border: 1px solid var(--border); border-radius: 10px; color: var(--text); font-size: 17px; min-height: 40px; text-align: right; }
+.amount span { font-size: 13px; color: var(--text2); }
+.row.done .amount span { color: var(--on-accent); }
+
+/* Inputs */
+.input-group { margin-bottom: 16px; }
+.input-group.last { margin-bottom: 0; }
+.input-group.inline { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.input-group.inline label { margin: 0; }
+.input-group.inline input { width: 96px; text-align: right; }
+.input-group label { display: block; font-size: 13px; font-weight: 400; color: var(--text2); margin-bottom: 8px; }
+input[type="text"], input[type="number"] {
+  width: 100%; padding: 12px 16px; background: var(--fill); border: 1px solid var(--border);
+  border-radius: 10px; color: var(--text); font-size: 17px; min-height: 46px;
+}
+input[type="number"] { -moz-appearance: textfield; }
+input::-webkit-outer-spin-button, input::-webkit-inner-spin-button { -webkit-appearance: none; }
+.goal-row { display: flex; gap: 12px; }
+.goal-row .input-group { flex: 1; }
+.setting-row {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 8px 0; border-bottom: 1px solid var(--border); margin-bottom: 8px; color: var(--text); font-size: 17px;
+}
+.setting-row.last { border-bottom: none; margin-bottom: 0; }
+select {
+  background: var(--fill); border: none; border-radius: 8px; padding: 6px 12px;
+  color: var(--text); font-size: 17px; cursor: pointer;
+}
+
+/* Segmented control: the active segment is pear. */
+.seg { background: var(--fill); border-radius: 9px; padding: 2px; display: flex; gap: 2px; margin-bottom: 16px; }
+.seg button {
+  flex: 1; padding: 8px 4px; border: none; border-radius: 7px; background: transparent;
+  color: var(--text2); font-size: 13px; font-weight: 400; cursor: pointer; transition: all 0.2s;
+}
+.seg button.on { background: var(--pear); color: var(--on-accent); font-weight: 600; box-shadow: 0 1px 3px var(--shadow); }
+.card .seg:last-child { margin-bottom: 0; }
+
+/* Weekday picker */
+.daypicker { display: flex; justify-content: space-between; gap: 6px; }
+.daypicker button {
+  width: 40px; height: 40px; border-radius: 20px; border: none; background: var(--fill);
+  color: var(--text); font-size: 15px; font-weight: 600; cursor: pointer;
+}
+.daypicker button[aria-pressed="true"] { background: var(--pear); color: var(--on-accent); }
+
+/* The live sentence on the edit screen, and the statement on the habit screen */
+.sentence { font-size: 20px; line-height: 1.4; margin-bottom: 12px; min-height: 28px; }
+.sentence .blank { color: var(--text2); }
+.statement { font-size: 22px; line-height: 1.4; font-weight: 500; }
+.words { font-size: 15px; color: var(--text2); margin-top: 6px; }
+
+/* Buttons */
+.btn { width: 100%; padding: 16px; border: none; border-radius: 12px; font-size: 17px; font-weight: 600; cursor: pointer; }
+.btn.primary { background: var(--leaf); color: var(--on-accent); }
+.btn.secondary { background: var(--fill); color: var(--text); }
+.btn.outline-destructive { background: transparent; border: 1px solid var(--destructive); color: var(--destructive); }
+.btn:disabled { opacity: 0.5; cursor: default; }
+.btn + .btn { margin-top: 12px; }
+#add-habit { margin-bottom: 24px; }
+.card > .btn + .hint { margin-top: 12px; }
+.version { text-align: center; margin-top: 24px; font-size: 13px; color: var(--text2); }
+
+/* Figures: four in a 2×2 card */
+.figures { display: grid; grid-template-columns: 1fr 1fr; }
+.figure { padding: 12px 8px; text-align: center; }
+.figure:nth-child(odd) { border-right: 1px solid var(--border); }
+.figure:nth-child(-n+2) { border-bottom: 1px solid var(--border); }
+.figure .num { font-size: 28px; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1.1; }
+.figure .lbl { font-size: 13px; color: var(--text2); margin-top: 4px; }
+.figure .sub { font-size: 12px; color: var(--text2); }
+
+/* Calendar: one month, Sunday first */
+.cal-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+.cal-head .month { font-size: 17px; font-weight: 600; }
+.cal-head button { background: var(--fill); border: none; border-radius: 16px; width: 32px; height: 32px; font-size: 18px; color: var(--text); cursor: pointer; }
+.cal-head button:disabled { opacity: 0.3; cursor: default; }
+.cal { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
+.cal .dow { text-align: center; font-size: 11px; color: var(--text2); padding-bottom: 2px; }
+.cal .day {
+  aspect-ratio: 1; border-radius: 8px; border: none; background: var(--fill); color: var(--text);
+  font-size: 15px; font-variant-numeric: tabular-nums; cursor: pointer; position: relative;
+}
+.cal .day.off { background: transparent; color: var(--text2); cursor: default; opacity: 0.6; }
+.cal .day.done { background: var(--leaf); color: var(--on-accent); font-weight: 600; }
+.cal .day.partial { background: var(--pear); color: var(--on-accent); }
+.cal .day.missed { background: var(--spot); color: var(--on-accent); }
+.cal .day.today { box-shadow: inset 0 0 0 2px var(--text); }
+.cal .day.selected { outline: 2px solid var(--text); outline-offset: 2px; }
+.cal .day.blank { background: transparent; cursor: default; }
+.day-editor { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--border); }
+.day-editor .lbl { font-size: 15px; }
+.legend { display: flex; gap: 14px; margin-top: 12px; font-size: 12px; color: var(--text2); flex-wrap: wrap; }
+.legend i { display: inline-block; width: 12px; height: 12px; border-radius: 3px; vertical-align: -1px; margin-right: 4px; }
+.legend .l-done { background: var(--leaf); }
+.legend .l-partial { background: var(--pear); }
+.legend .l-missed { background: var(--spot); }
+
+/* Toast */
+.toast {
+  position: fixed; left: 50%; bottom: calc(96px + env(safe-area-inset-bottom)); transform: translateX(-50%);
+  background: var(--text); color: var(--bg); padding: 10px 14px; border-radius: 10px; font-size: 14px;
+  max-width: 90vw; box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25); z-index: 10;
+}
