@@ -9,7 +9,7 @@
  */
 'use strict';
 
-var APP_VERSION = '2026.10.17.1';
+var APP_VERSION = '2026.10.17.2';
 var STORAGE = { settings: 'fruit.settings', data: 'fruit.data', backup: 'fruit.backup' };
 var MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 var LONG_DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
@@ -197,15 +197,15 @@ if (typeof document !== 'undefined') {
     function active() { return doc.habits.filter(function (h) { return !h.archived; }); }
     function archived() { return doc.habits.filter(function (h) { return h.archived; }); }
 
-    /** Every change goes through here: stamps the document, stores it, redraws. */
-    function commit() {
+    /** Every change goes through here: stamps the document, stores it, and redraws unless told not to. */
+    function commit(quiet) {
       doc.updated = new Date().toISOString();
       if (!save(STORAGE.data, doc)) toast('Could not save on this device: storage is full or blocked.');
-      render();
+      if (!quiet) render();
     }
-    function setAmount(habit, date, amount) {
+    function setAmount(habit, date, amount, quiet) {
       habit.log = withAmount(habit.log, date, amount);
-      commit();
+      commit(quiet);
     }
     function amountOn(habit, date) { var a = habit.log[date]; return typeof a === 'number' ? a : 0; }
 
@@ -351,6 +351,9 @@ if (typeof document !== 'undefined') {
         input.value = a > 0 ? String(a) : '';
         input.placeholder = String(h.goal.amount);
         input.setAttribute('aria-label', 'Amount in ' + h.goal.unit);
+        // Stored on every keystroke, so a value in the field survives the app being put away with the
+        // keyboard open; the row is redrawn only when the field is left, so typing is not interrupted.
+        input.addEventListener('input', function () { setAmount(h, date, input.valueAsNumber, true); });
         input.addEventListener('change', function () { setAmount(h, date, input.valueAsNumber); });
         wrap.appendChild(input);
         wrap.appendChild(el('span', null, h.goal.unit));
@@ -448,16 +451,20 @@ if (typeof document !== 'undefined') {
       return f;
     }
 
-    /** The class a calendar day gets, from the rules. */
+    /**
+     * The class a calendar day gets, from the rules, judged against `end` (the archive date for
+     * an archived habit) so the calendar matches the frozen figures. Today is unsettled to the
+     * rules while it is short of the goal, but a start logged for it still shows as partial.
+     */
     function dayClass(h, date, end) {
       if (date < h.created || date > end) return 'off';
-      var st = R.dayState(h, date, ui.today), sched = R.isScheduled(h, date);
+      var st = R.dayState(h, date, end), sched = R.isScheduled(h, date);
       if (h.direction === 'stop') {
         if (st === 'missed') return 'missed';
         return sched && st === 'done' ? 'done' : '';
       }
       if (st === 'done') return 'done';
-      if (st === 'partial') return 'partial';
+      if (st === 'partial' || (st === 'unsettled' && amountOn(h, date) > 0)) return 'partial';
       if (st === 'missed' && sched) return 'missed';
       return '';
     }
@@ -509,7 +516,8 @@ if (typeof document !== 'undefined') {
         var cell = button('day' + (cls ? ' ' + cls : ''), String(Number(date.slice(8, 10))), function () { tapDay(h, date); }, formatDisplayDate(date));
         if (date === ui.today) cell.classList.add('today');
         if (date === ui.selected) cell.classList.add('selected');
-        if (cls === 'off' || h.archived) cell.disabled = true;
+        // A stop habit asks nothing on an unscheduled day, so there is nothing to log there.
+        if (cls === 'off' || h.archived || (h.direction === 'stop' && !R.isScheduled(h, date))) cell.disabled = true;
         grid.appendChild(cell);
       });
       card.appendChild(grid);

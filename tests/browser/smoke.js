@@ -96,6 +96,31 @@ async function main() {
     for (let i = 0; i < 3; i++) await water.locator('.stepper button[aria-label="One more"]').click();
     await page.waitForFunction(() => /3 of 8/.test(document.getElementById('today').textContent));
     assert.equal(await water.locator('.stepper.partial').count(), 1, 'a partial day colors the stepper');
+    await water.locator('.text').click();
+    await page.waitForSelector('#screen-habit.open');
+    assert.equal(await page.locator('#habit-detail .cal .day.today.partial').count(), 1, 'a partial today shows as partial on the calendar');
+    await page.click('[data-close="screen-habit"]');
+    await page.waitForSelector('#screen-habit:not(.open)');
+
+    // A measured habit stores what is typed before the field is left
+    await page.click('[data-tab="1"]');
+    await page.click('#add-habit');
+    await page.waitForSelector('#screen-edit.open');
+    await page.fill('#action', 'run');
+    await page.fill('#identity', 'a runner');
+    await page.fill('#amount', '2');
+    await page.fill('#unit', 'miles');
+    assert.equal(await text('#sched-words'), '2 miles a day, every day');
+    await page.click('#save-habit');
+    await page.waitForSelector('#screen-edit:not(.open)');
+    const run = page.locator('#today .row', { hasText: 'run' });
+    await run.locator('.amount input').pressSequentially('1.5');
+    const typed = await page.evaluate(() => JSON.parse(localStorage.getItem('fruit.data')).habits.find((h) => h.action === 'run').log);
+    assert.equal(Object.values(typed)[0], 1.5, 'the amount is stored while the keyboard is still up');
+    await run.locator('.amount input').fill('2');
+    await run.locator('.amount input').blur();
+    await page.waitForSelector('#today .row.done', { state: 'attached' });
+    assert.equal(await run.evaluate((n) => n.classList.contains('done')), true, 'reaching the goal marks the row done');
 
     // A stop habit: clean until a slip
     await page.click('#settings-btn');
@@ -124,11 +149,17 @@ async function main() {
     await shot('06-today-three');
     await snack.locator('.stepper button[aria-label="Undo a slip"]').click();
     await page.waitForSelector('#today .row.over', { state: 'detached' });
+    // On its calendar, a day the stop habit is not scheduled for cannot be tapped
+    await snack.locator('.text').click();
+    await page.waitForSelector('#screen-habit.open');
+    assert.equal(await page.locator('#habit-detail .cal .day.today').isDisabled(), false);
+    await page.click('[data-close="screen-habit"]');
+    await page.waitForSelector('#screen-habit:not(.open)');
 
     // Habits page
     await page.click('[data-tab="1"]');
     assert.equal(await text('#title'), 'Habits');
-    assert.equal(await page.locator('#habits .row').count(), 3);
+    assert.equal(await page.locator('#habits .row').count(), 4);
     assert.match(await text('#habits'), /Every day/);
     await shot('07-habits');
 
@@ -162,7 +193,7 @@ async function main() {
     await page.click('[data-close="screen-habit"]');
     await page.waitForSelector('#screen-habit:not(.open)');
     assert.match(await text('#habits'), /Archived · 1/);
-    assert.equal(await page.locator('#habits .card.list .row').count(), 2);
+    assert.equal(await page.locator('#habits .card.list .row').count(), 3);
     await page.locator('#habits .group-head').click();
     await page.locator('#habits .row .text', { hasText: 'floss' }).click();
     await page.waitForSelector('#screen-habit.open');
@@ -172,7 +203,7 @@ async function main() {
     // Delete
     await page.locator('#habit-detail .btn', { hasText: 'Delete' }).click();
     await page.waitForSelector('#screen-habit:not(.open)');
-    assert.equal(await page.locator('#habits .row').count(), 2);
+    assert.equal(await page.locator('#habits .row').count(), 3);
 
     // Settings: theme
     await page.click('#settings-btn');
@@ -188,11 +219,11 @@ async function main() {
     await page.evaluate(() => navigator.serviceWorker.ready);
     await page.reload();
     await page.waitForSelector('#today .row');
-    assert.equal(await page.locator('#today .row').count(), 2, 'habits survive a reload');
+    assert.equal(await page.locator('#today .row').count(), 3, 'habits survive a reload');
     assert.equal(await page.evaluate(() => navigator.serviceWorker.ready.then((r) => !!r.active)), true, 'service worker active');
     const stored = await page.evaluate(() => JSON.parse(localStorage.getItem('fruit.data')));
     assert.equal(stored.v, 1);
-    assert.equal(stored.habits.length, 2);
+    assert.equal(stored.habits.length, 3);
     assert.match(stored.updated, /^\d{4}-\d{2}-\d{2}T/);
 
     // Swipe between pages
