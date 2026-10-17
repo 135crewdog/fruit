@@ -18,8 +18,8 @@ Ask the user before adding anything that is not in this file. Ideas that were di
 
 | # | Scope | Status |
 |---|---|---|
-| 1 | This file and `README.md`, agreed and merged. Nothing else. | In review |
-| 2 | `app/rules.js` and `tests/rules.test.js` from the required test tables below. | |
+| 1 | This file and `README.md`, agreed and merged. Nothing else. | Done, 2026-10-17 |
+| 2 | `app/rules.js` and `tests/rules.test.js` from the required test tables below. | In review |
 | 3 | The app in `app/`, local only (no backup yet), published to GitHub Pages at `https://135crewdog.github.io/fruit/` and looked at on the iPhone. | |
 | 4 | `apps-script/Code.js`, the Backup section of Settings, Export and Import, and the guide. | |
 
@@ -79,7 +79,7 @@ All of this lives in one file, `app/rules.js`: pure functions, no DOM, no storag
 - **Never miss twice.** A streak survives one missed scheduled day; two missed scheduled days in a row end it. Walking back from today: skip today while unsettled, count the done days, and pass over a miss unless the scheduled day before it was also missed. The forgiven day adds nothing to the streak, still shows as missed on the calendar, and still counts against the completion rate; only the streak forgives. For a stop habit, never slip twice: one day over the limit is forgiven unless the scheduled day before it was over too.
 - **Weeks: short by one.** A week with N−1 done days is forgiven unless the week before it also fell short; a week short by two or more ends the streak, the moment it settles. Same walk back, with the week as the unit.
 - **Stop habits** use the same rules with "done" read as "clean". There is no partial state: a slip within the limit is still a clean day. A stop habit's schedule is `days` or `weekly` (N clean days a week); `every` is not offered, because "every 3 days" means nothing for a habit to stop.
-- **Total** is the number of done days since `created`, scheduled or not. It is a count of days, not a sum of amounts, so a 64-oz habit and a 1-time habit read alike.
+- **Total** is the number of done days since `created`, scheduled or not. It is a count of days, not a sum of amounts, so a 64-oz habit and a 1-time habit read alike. For a stop habit it counts clean scheduled days only: there is no bonus for a day on which nothing was asked.
 - **Best streak** is the longest current-streak value the habit has ever had, by the same rule.
 - A **bonus day** (done, not scheduled) counts toward Total and nothing else: it neither extends nor breaks a streak and is in neither side of the completion rate.
 - A **partial day** (start habits only) is not done. It is shown in yellow and counts for nothing in the rules.
