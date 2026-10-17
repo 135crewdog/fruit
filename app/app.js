@@ -9,7 +9,7 @@
  */
 'use strict';
 
-var APP_VERSION = '2026.10.17.2';
+var APP_VERSION = '2026.10.17.3';
 var STORAGE = { settings: 'fruit.settings', data: 'fruit.data', backup: 'fruit.backup' };
 var MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 var LONG_DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
@@ -281,18 +281,19 @@ if (typeof document !== 'undefined') {
     document.querySelectorAll('.tab').forEach(function (b) {
       b.addEventListener('click', function () { setTab(Number(b.getAttribute('data-tab'))); });
     });
-    (function swipe(area, onLeft, onRight) {
+    /** A horizontal swipe on `area`, Show Time's rule: at least MIN_SWIPE_PX, and horizontal movement must dominate. */
+    function swipe(area, onLeft, onRight) {
       var x0 = null, y0 = null, x1 = null, y1 = null;
       area.addEventListener('touchstart', function (e) { x0 = e.targetTouches[0].clientX; y0 = e.targetTouches[0].clientY; x1 = y1 = null; }, { passive: true });
       area.addEventListener('touchmove', function (e) { x1 = e.targetTouches[0].clientX; y1 = e.targetTouches[0].clientY; }, { passive: true });
       area.addEventListener('touchend', function () {
         if (x0 == null || x1 == null) return;
         var dx = x0 - x1, dy = Math.abs(y0 - y1);
-        // Only when horizontal movement dominates vertical
         if (dy > Math.abs(dx) * 0.75) return;
         if (dx > MIN_SWIPE_PX) onLeft(); else if (dx < -MIN_SWIPE_PX) onRight();
       }, { passive: true });
-    })($('pages-wrap'), function () { if (ui.tab < 1) setTab(ui.tab + 1); }, function () { if (ui.tab > 0) setTab(ui.tab - 1); });
+    }
+    swipe($('pages-wrap'), function () { if (ui.tab < 1) setTab(ui.tab + 1); }, function () { if (ui.tab > 0) setTab(ui.tab - 1); });
 
     // ---- rendering ----
 
@@ -496,11 +497,15 @@ if (typeof document !== 'undefined') {
       if (!ui.calMonth || ui.calMonth > maxMonth) ui.calMonth = maxMonth;
       if (ui.calMonth < minMonth) ui.calMonth = minMonth;
       var ym = ui.calMonth;
+      function showMonth(target) {
+        if (target < minMonth || target > maxMonth) return;
+        ui.calMonth = target; ui.selected = null; renderDetail();
+      }
       var card = el('div', 'card');
       var head = el('div', 'cal-head');
-      var prev = button(null, '‹', function () { ui.calMonth = addMonths(ym, -1); ui.selected = null; renderDetail(); }, 'Earlier month');
+      var prev = button(null, '‹', function () { showMonth(addMonths(ym, -1)); }, 'Earlier month');
       prev.disabled = ym <= minMonth;
-      var next = button(null, '›', function () { ui.calMonth = addMonths(ym, 1); ui.selected = null; renderDetail(); }, 'Later month');
+      var next = button(null, '›', function () { showMonth(addMonths(ym, 1)); }, 'Later month');
       next.disabled = ym >= maxMonth;
       head.appendChild(prev);
       head.appendChild(el('span', 'month', monthWords(ym)));
@@ -508,6 +513,8 @@ if (typeof document !== 'undefined') {
       card.appendChild(head);
 
       var grid = el('div', 'cal');
+      // A swipe on the grid turns the month the same way the arrows do: left for later, right for earlier.
+      swipe(grid, function () { showMonth(addMonths(ym, 1)); }, function () { showMonth(addMonths(ym, -1)); });
       R.DAY_NAMES.forEach(function (d) { grid.appendChild(el('div', 'dow', d.charAt(0))); });
       var first = ym + '-01';
       monthCells(ym, R.weekday(first), daysInMonth(ym)).forEach(function (date) {

@@ -235,6 +235,38 @@ async function main() {
     });
     await page.waitForFunction(() => document.getElementById('title').textContent === 'Habits');
 
+    // The calendar turns months with a swipe, back to the month the habit was created
+    const twoMonthsAgo = app.addMonths(TODAY.slice(0, 7), -2) + '-15';
+    await page.evaluate((created) => {
+      const d = JSON.parse(localStorage.getItem('fruit.data'));
+      d.habits[0].created = created;
+      localStorage.setItem('fruit.data', JSON.stringify(d));
+    }, twoMonthsAgo);
+    await page.reload();
+    await page.waitForSelector('#today .row');
+    await page.click('[data-tab="1"]');
+    await page.locator('#habits .row .text').first().click();
+    await page.waitForSelector('#screen-habit.open');
+    const monthIs = (ym) => page.waitForFunction((m) => document.querySelector('#habit-detail .cal-head .month').textContent === m, app.monthWords(ym));
+    await monthIs(TODAY.slice(0, 7));
+    const swipeCal = (from, to) => page.evaluate(([x0, x1]) => {
+      const grid = document.querySelector('#habit-detail .cal');
+      const t = (type, x) => grid.dispatchEvent(new TouchEvent(type, { bubbles: true, targetTouches: [new Touch({ identifier: 1, target: grid, clientX: x, clientY: 500 })] }));
+      t('touchstart', x0); t('touchmove', x1); grid.dispatchEvent(new TouchEvent('touchend', { bubbles: true }));
+    }, [from, to]);
+    await swipeCal(100, 300); // to the right: an earlier month
+    await monthIs(app.addMonths(TODAY.slice(0, 7), -1));
+    await swipeCal(100, 300);
+    await monthIs(app.addMonths(TODAY.slice(0, 7), -2));
+    await swipeCal(100, 300); // nothing before the month of creation
+    await page.waitForTimeout(100);
+    assert.equal(await text('#habit-detail .cal-head .month'), app.monthWords(app.addMonths(TODAY.slice(0, 7), -2)));
+    assert.equal(await page.isDisabled('#habit-detail .cal-head button[aria-label="Earlier month"]'), true);
+    await swipeCal(300, 100); // to the left: later
+    await monthIs(app.addMonths(TODAY.slice(0, 7), -1));
+    await page.click('[data-close="screen-habit"]');
+    await page.waitForSelector('#screen-habit:not(.open)');
+
     // Clear local data
     await page.click('#settings-btn');
     await page.click('#clear-data');
