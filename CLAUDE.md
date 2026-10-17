@@ -187,7 +187,7 @@ The full statement as one sentence, the schedule in words beneath it. Four figur
 
 ### New and Edit habit (pushed)
 
-A segmented control first: Start a habit / Stop a habit. Then the live sentence, assembled as the fields fill, and three fields: "I will…" or "I will not…" (the action, required), "…when or where…" (the cue, optional), "…so that I can become…" (the identity, required). A segmented control for the schedule kind, Days / Per week / Every N days (Every N days is not offered for a stop habit), and beneath it the seven-day picker, a number of times, or a number of days. Goal, or Limit for a stop habit: an amount (1 by default; 0 for a stop habit) and a unit (`times` by default; free text with a datalist of Atoms' units: times, steps, cups, ml, liters, oz, hours, min, sec, cal, kcal, miles, km, meters, feet, yards, pounds, kg). Save is disabled until the action, the identity and a valid schedule exist. Editing changes the habit for all time; there is no schedule history (parked). No time, no reminder.
+A segmented control first: Start a habit / Stop a habit. Then the live sentence, assembled as the fields fill, and three fields: "I will…" or "I will not…" (the action, required), "…when or where…" (the cue, optional), "…so that I can become…" (the identity, required). A segmented control for the schedule kind, Days / Per week / Every N days (Every N days is not offered for a stop habit), and beneath it the seven-day picker, a number of times, or a number of days. Goal, or Limit for a stop habit: an amount (1 by default; 0 for a stop habit) and a unit (`times` by default; free text with a datalist of Atoms' units: times, steps, cups, ml, liters, oz, hours, min, sec, cal, kcal, miles, km, meters, feet, yards, pounds, kg). Save is disabled until the action, the identity, a valid schedule and a valid amount exist: a finite number above 0 for a goal, 0 or above for a limit. Editing changes the habit for all time; there is no schedule history (parked). No time, no reminder.
 
 ### Settings (sheet)
 
@@ -210,7 +210,7 @@ The phone is the source of truth. The backup exists so that a lost or replaced p
 A standalone Apps Script, bound to nothing, deployed as a web app (Execute as: Me; Access: Anyone), with the shared secret in Script Properties under `FRUIT_TOKEN` (lowercase letters and digits, eight or more). It keeps one file, `Low-Hanging Fruit.json`, in the owner's Drive root, created empty on the first call. Every response is JSON; Apps Script cannot set status codes, so errors are `{ "ok": false, "error": "..." }`.
 
 - `GET ?token=…` returns `{ ok, version, updated, data }`: the script's `SCRIPT_VERSION`, the stored document's `updated`, and the document (or `null` when the file is empty).
-- `POST` with body `{ token, data }` (Content-Type `text/plain`, because Apps Script does not answer CORS preflights) replaces the file when `data.updated` is later than the stored `updated`, and returns `{ ok, version, updated }`. When the stored document is newer it changes nothing and returns `{ ok: false, error: "backup is newer", updated }`. The body is parsed and `data.v`, `data.updated` and `data.habits` checked before anything is written. Under the script lock.
+- `POST` with body `{ token, data }` (Content-Type `text/plain`, because Apps Script does not answer CORS preflights) replaces the file when `data.updated` is later than the stored `updated`, and returns `{ ok, version, updated }`. When the two are equal it changes nothing and still returns `ok`: a backup whose reply was lost is simply sent again. Only when the stored document is newer does it refuse, with `{ ok: false, error: "backup is newer", updated }`. The body is parsed and `data.v`, `data.updated` and `data.habits` checked before anything is written. Under the script lock.
 
 After a code change, bump `SCRIPT_VERSION`, paste again and deploy a **new version** of the same deployment, or the web app keeps serving old code.
 
@@ -219,7 +219,7 @@ After a code change, bump `SCRIPT_VERSION`, paste again and deploy a **new versi
 - Every change to the document sets `updated` and marks the backup pending. A backup runs a few seconds after the last change when online, and on load, on `online`, when the app becomes visible, and from Back up now, while one is pending. A failure keeps it pending and shows the error in Settings.
 - "Backup is newer" is shown in Settings with a Restore button; nothing is overwritten either way without the user choosing.
 - Restore from backup replaces the local document with the stored one, after asking. On first run with a URL and token saved and no habits, the app offers Restore itself.
-- Export writes the document to `Low-Hanging Fruit.json` through the share sheet. Import reads one, checks `v` and `habits`, and replaces the local document after asking. Both work with no backend at all.
+- Export writes the document to `Low-Hanging Fruit.json` through the share sheet. Import reads one, checks it is a document as described under The data (`v` is 1, every habit has its fields with valid values, every log key a date and every amount a number) and names the first problem if not, then replaces the local document after asking. Both work with no backend at all.
 - The URL and token are typed into Settings once. Never commit either.
 
 ## Architecture

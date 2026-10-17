@@ -21,11 +21,11 @@ tests/                node --test, plus a Playwright smoke test in tests/browser
 
 ## Tests
 
-`node --test tests/` runs the unit tests. `tests/rules.test.js` holds the required test tables from `CLAUDE.md` verbatim; if the code disagrees with a table, the code is wrong. The browser smoke test needs Playwright and runs the app in Chromium at an iPhone viewport.
+`node --test` runs the unit tests (it finds `tests/*.test.js` on its own; the browser test is not named that way, so it is not picked up). `tests/rules.test.js` holds the required test tables from `CLAUDE.md` verbatim; if the code disagrees with a table, the code is wrong. The browser smoke test needs Playwright and runs the app in Chromium at an iPhone viewport.
 
 ## API
 
-The backup script answers JSON. `GET ?token=…` returns `{ ok, version, updated, data }`. `POST` with a `text/plain` body `{ token, data }` replaces the stored document when `data.updated` is newer, else `{ ok: false, error: "backup is newer", updated }`. See "Backup" in `CLAUDE.md`.
+The backup script answers JSON. `GET ?token=…` returns `{ ok, version, updated, data }`. `POST` with a `text/plain` body `{ token, data }` replaces the stored document when `data.updated` is newer, answers `ok` without writing when it is equal, and refuses with `{ ok: false, error: "backup is newer", updated }` when the stored one is newer. See "Backup" in `CLAUDE.md`.
 
 ## Versions
 
