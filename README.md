@@ -6,7 +6,7 @@ Low-Hanging Fruit follows the [HIG](https://135crewdog.github.io/hig/) as a focu
 
 ## Status
 
-Milestone 1: the spec. There is no code yet. The milestones are in `CLAUDE.md`.
+Milestone 3: the app, local only. Habits and check-ins live on the phone; the Drive backup, Export and Import come in milestone 4. The milestones are in `CLAUDE.md`.
 
 ## Layout
 
@@ -21,7 +21,13 @@ tests/                node --test, plus a Playwright smoke test in tests/browser
 
 ## Tests
 
-`node --test` runs the unit tests (it finds `tests/*.test.js` on its own; the browser test is not named that way, so it is not picked up). `tests/rules.test.js` holds the required test tables from `CLAUDE.md` verbatim; if the code disagrees with a table, the code is wrong. The browser smoke test needs Playwright and runs the app in Chromium at an iPhone viewport.
+`node --test` runs the unit tests (it finds `tests/*.test.js` on its own; the browser test is not named that way, so it is not picked up). `tests/rules.test.js` holds the required test tables from `CLAUDE.md` verbatim; if the code disagrees with a table, the code is wrong. `tests/app.test.js` covers the app's pure helpers.
+
+The browser smoke test needs Playwright with Chromium (a development tool, nothing is saved to the repository): `npm install --no-save --no-package-lock playwright && npx playwright install chromium`, then `node tests/browser/smoke.js [screenshot-dir]`. It serves `app/` and drives it at an iPhone viewport through adding, logging, backfilling, editing, archiving and deleting habits, Settings, a reload and the service worker. CI runs both on every push and pull request, and the Pages deploy waits for them.
+
+## Hosting
+
+`pages.yml` publishes `app/` to GitHub Pages at https://135crewdog.github.io/fruit/ on every push to `main` that touches it. One-time setup: Settings → Pages → Build and deployment → Source: GitHub Actions. On the iPhone, open the address in Safari, Share → Add to Home Screen.
 
 ## API
 
