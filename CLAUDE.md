@@ -1,0 +1,250 @@
+# Low-Hanging Fruit
+
+Personal habit tracker. A PWA installed on one iPhone keeps every habit and every check-in in one JSON document on the phone, works out streaks and completion itself, and backs the document up to a file in the owner's Google Drive through a tiny Apps Script web app. A replacement for the habit-tracking core of Atoms, nothing more.
+
+Low-Hanging Fruit follows the HIG at https://135crewdog.github.io/hig/ (Simple, Future-proof, Efficient, and the Baseline). It is a **focused** app in the HIG's sense: built for an iPhone in portrait, installed to the home screen, following iOS defaults, the way Show Time is. It is not a plain page for any device like Apollo.
+
+## The three project rules
+
+1. **SIMPLE.** One JSON document, one app, one tiny script. Plain HTML/CSS/JS, no framework, no build step, no runtime dependencies. When in doubt, choose fewer fields, files and features.
+2. **FUTURE-PROOF.** The data is a readable JSON file the owner holds: exportable from Settings, backed up to their own Drive. Every rule lives in one pure file. If the app disappeared tomorrow, the file would still read and the rules would still be in plain words here.
+3. **LOCAL DAY.** A habit day is the device's local calendar day. "Today" is the local date. A 9 pm check-in is today. (This is the opposite of Apollo's Zulu rule, on purpose: a habit belongs to the day the person lived.)
+
+Ask the user before adding anything that is not in this file. Ideas that were discussed and not adopted are listed under "Parked" at the end; do not build them without asking.
+
+**Working rule:** propose a solution and agree it with the user before building it. A pull request waits for the user's review; never merge one unasked. Each milestone is looked at on the user's iPhone, installed to the home screen, before the next starts.
+
+## Milestones
+
+| # | Scope | Status |
+|---|---|---|
+| 1 | This file and `README.md`, agreed and merged. Nothing else. | In review |
+| 2 | `app/rules.js` and `tests/rules.test.js` from the required test tables below. | |
+| 3 | The app in `app/`, local only (no backup yet), published to GitHub Pages at `https://135crewdog.github.io/fruit/` and looked at on the iPhone. | |
+| 4 | `apps-script/Code.js`, the Backup section of Settings, Export and Import, and the guide. | |
+
+## The data
+
+One document in `localStorage` under `fruit.data`. The backup file and the export are this document, byte for byte.
+
+```json
+{
+  "v": 1,
+  "updated": "2026-10-17T20:14:03Z",
+  "habits": [
+    {
+      "id": "h_k3j9",
+      "action": "get out of bed",
+      "cue": "before 6 a.m.",
+      "identity": "a morning person",
+      "created": "2026-01-21",
+      "archived": null,
+      "schedule": { "kind": "days", "days": [1, 2, 3, 4, 5] },
+      "goal": { "amount": 1, "unit": "times" },
+      "log": { "2026-10-15": 1, "2026-10-16": 1 }
+    }
+  ]
+}
+```
+
+- `v` is the document version, `1`. `updated` is the UTC instant of the last change, the one place UTC appears; it orders backups, nothing else.
+- A habit's statement has three parts, after Atoms: `action` ("get out of bed"), `cue` ("before 6 a.m.", optional) and `identity` ("a morning person"). The app assembles the sentence: "I will get out of bed before 6 a.m. so that I can become a morning person."
+- `schedule.kind` is one of:
+  - `days`: `days` lists weekdays, `0` = Sunday to `6` = Saturday. Atoms' only kind.
+  - `weekly`: `times` is N done days per week, on any days.
+  - `every`: `days` is N; scheduled days are `created`, `created` + N, `created` + 2N, and so on.
+- `goal.amount` is a number above 0. `goal.unit` is free text, `times` by default. A `times` goal of 1 is the plain once-a-day habit. Units are labels; nothing converts.
+- `log` maps a local date (`YYYY-MM-DD`) to the amount logged that day. A day is **done** when its amount is at least `goal.amount`, **partial** when it is above 0 and below. A key whose amount falls to 0 is removed.
+- `id` is random and never shown. `created` is the local date the habit was made. `archived` is the local date it was archived, or `null`.
+- Settings live apart, in `fruit.settings` (`{ url, token, theme }`), so a backup or export never carries the token.
+
+## The rules
+
+All of this lives in one file, `app/rules.js`: pure functions, no DOM, no storage, unit-tested in Node. Nothing else does date or streak math.
+
+"Today" is the device's local date. Weeks run Sunday to Saturday, as on the iPhone's own calendar in the US. Dates are `YYYY-MM-DD` strings and the math is done on year, month and day numbers.
+
+### Scheduled days, streaks, completion
+
+| Schedule | A scheduled day is | Current streak | Completion rate |
+|---|---|---|---|
+| `days` | a date whose weekday is in `days` | consecutive scheduled days done, counting back from today; today is skipped, not broken, while it is not yet done | done scheduled days ÷ scheduled days, from `created` through yesterday, plus today once it is done |
+| `every` N | `created` + k·N for k = 0, 1, 2… | as `days` | as `days` |
+| `weekly` N | every day; the week is the unit | consecutive whole weeks with at least N done days, counting back from last week, plus the current week once it has N | weeks with at least N done days ÷ whole weeks, from the week containing `created` through last week |
+
+- **Total** is the number of done days since `created`, scheduled or not. It is a count of days, not a sum of amounts, so a 64-oz habit and a 1-time habit read alike.
+- **Best streak** is the longest current-streak value the habit has ever had, by the same rule.
+- A **bonus day** (done, not scheduled) counts toward Total and nothing else: it neither extends nor breaks a streak and is in neither side of the completion rate.
+- A **partial day** is not done. It is shown in yellow and counts for nothing in the rules.
+- A **missed day** is a scheduled day before today with no done amount.
+- **No scheduled days yet** (a habit created today, a `weekly` habit in its first week): completion rate is blank, not 0%.
+- An **archived** habit is frozen: no scheduled days fall after `archived`, and its figures stop there.
+
+### Required test cases
+
+These are the spec. If the code disagrees with these tables, the code is wrong. Never change an expected value to make a test pass; ask the user. `tests/rules.test.js` holds these tables verbatim.
+
+Today is **2026-10-17, a Saturday**, unless a row says otherwise. Every logged day in these tables is done (amount at goal) unless marked partial. Weekdays are Monday to Friday.
+
+| # | Habit | Log | Current streak | Best streak | Completion | Total |
+|---|---|---|---|---|---|---|
+| 1 | weekdays, created 2026-10-01 | Oct 12, 13, 14, 15, 16 | 5 | 5 | 5/12 | 5 |
+| 2 | weekdays, created 2026-10-01, today 2026-10-16 (Fri), Oct 16 not yet logged | Oct 12, 13, 14, 15 | 4 | 4 | 4/11 | 4 |
+| 3 | weekdays, created 2026-10-01, today 2026-10-16 (Fri) | Oct 12, 13, 14, 15, 16 | 5 | 5 | 5/12 | 5 |
+| 4 | weekdays, created 2026-10-01, today 2026-10-16 (Fri), Oct 16 not yet logged | Oct 12, 13, 14 | 0 | 3 | 3/11 | 3 |
+| 5 | weekdays, created 2026-10-01, today 2026-10-16 (Fri) | Oct 12, 13, 14, 16 | 1 | 3 | 4/12 | 4 |
+| 6 | weekdays, created 2026-10-01 | Oct 10 (Sat), 12, 13, 14, 15, 16 | 5 | 5 | 5/12 | 6 |
+| 7 | weekdays, created 2026-10-01 | Oct 1, 2, 5, 6, 7, 12, 13 | 0 | 5 | 7/12 | 7 |
+| 8 | weekdays, created 2026-10-17 (today) | none | 0 | 0 | blank | 0 |
+| 9 | weekdays, goal 8 times, created 2026-10-12 | Oct 12: 8, 13: 8, 14: 8, 15: 8, 16: 5 (partial) | 0 | 4 | 4/5 | 4 |
+| 10 | weekdays, created 2026-10-01, archived 2026-10-10 | Oct 1, 2, 5, 6, 7, 8, 9 | 7 | 7 | 7/7 | 7 |
+| 11 | every 3 days, created 2026-09-28 | Oct 1, 4, 7, 10, 13, 16 | 6 | 6 | 6/7 | 6 |
+| 12 | every 3 days, created 2026-09-28 | Sep 28, Oct 1, 4, 7, 10, 13, 16 | 7 | 7 | 7/7 | 7 |
+| 13 | every 3 days, created 2026-09-28 | Sep 28, Oct 1, 4, 10, 13, 16 | 3 | 3 | 6/7 | 6 |
+| 14 | 3 per week, created 2026-09-27 | Sep 28, 30, Oct 2, 5, 7, 9, 12, 14 | 2 | 2 | 2/2 | 8 |
+| 15 | 3 per week, created 2026-09-27 | Sep 28, 30, Oct 2, 5, 7, 9, 12, 14, 16 | 3 | 3 | 2/2 | 9 |
+| 16 | 3 per week, created 2026-09-27 | Sep 28, 30, Oct 2, 5, 7, 12, 14, 16 | 1 | 1 | 1/2 | 8 |
+| 17 | 3 per week, created 2026-09-27 | Sep 28, 30, Oct 2, 5, 7, 12, 14 | 0 | 1 | 1/2 | 7 |
+| 18 | 3 per week, created 2026-10-11 (this Sunday) | Oct 12, 14, 16 | 1 | 1 | blank | 3 |
+
+Notes on the rows. 1: today is a Saturday, unscheduled, so it is skipped; the 12 scheduled days are Oct 1, 2, 5–9, 12–16. 4 and 5: Thursday the 15th was missed. 6: the Saturday is a bonus day. 7: the streak of five ran Oct 1–7, then the 8th was missed. 9: Friday is partial, so the streak stops at Thursday and the rate counts five scheduled days with four done. 10: nothing after Oct 10 is scheduled, so a week of silence costs nothing. 11–13: the scheduled days are Sep 28, Oct 1, 4, 7, 10, 13, 16 (and 19), so the anchor arithmetic crosses the month end; 13 missed Oct 7. 14–17: the whole weeks are Sep 27–Oct 3 and Oct 4–10, the current week is Oct 11–17; 16 has only two done days in the week of Oct 4, which breaks the run, and the current week's three add one; 17 has two in the current week too. 18: no whole week has passed, so the rate is blank while the met current week gives a streak of one.
+
+### Schedule in words
+
+The app describes a schedule in one phrase, built by one function in `rules.js`:
+
+| Schedule | Words |
+|---|---|
+| all seven days | `Every day` |
+| Monday to Friday | `Weekdays` |
+| Saturday and Sunday | `Weekends` |
+| any other `days` | the day names in week order, `Mon, Wed, Fri` |
+| `weekly` N | `3 times a week`, `Once a week` |
+| `every` N | `Every 3 days`, `Every other day` for 2, `Every day` for 1 |
+| goal above 1 | the amount and unit lead: `8 times a day, weekdays`, `2 miles a day, every 3 days`, `64 oz a day, 3 times a week` |
+
+## The app
+
+### An iPhone app shell, after Show Time
+
+The app is installed to the home screen and behaves like an iOS app. `display: standalone`, portrait, the viewport `width=device-width, initial-scale=1, viewport-fit=cover` with no user zoom, `apple-mobile-web-app-status-bar-style` black-translucent, the root sized to the viewport with `env(safe-area-inset-*)` padding, `overflow: hidden` on the body, and each page scrolling inside itself. Two top-level pages sit side by side and slide (`translateX`, 0.3s) when a tab is tapped or a horizontal swipe dominates the vertical by at least 50px. Detail and edit screens push in from the right and have a back chevron; Settings presents as a sheet. With reduced motion on, slides become cuts.
+
+Apollo's "no app shell" rule does **not** apply here, and the reason is written down as the HIG's Baseline asks: that rule belongs to a broad app that must look right on any device. Low-Hanging Fruit is focused on one iPhone, so it sizes itself to the phone the way Show Time does. An iPad or desktop gets whatever falls out and is not a target. The shell is the first thing checked on the phone: no band of page beneath the app, the status bar and home indicator respected, the keyboard not covering the field being typed in.
+
+### Design system
+
+The visual language is Show Time's and Apollo's iOS-style system: the system font stack, antialiased; a header with the 34px bold title on the left and a round 40px gear button on the right; content in sections with 13px uppercase letter-spaced gray titles over rounded 10px cards with a 1px border; 17px inputs on a gray fill with 10px radius; full-width 12px-radius buttons; iOS segmented controls; an iOS tab bar at the bottom; Settings with "Done" on the left and a centered title; a Light/Dark/Auto theme setting that also sets the page's theme color; Apple's gray palette for backgrounds, borders, fills and secondary text (`#f2f2f7`, `#ffffff`, `#c6c6c8`, `#8e8e93`, `#e5e5ea`; dark `#000000`, `#1c1c1e`, `#38383a`, `#98989d`, `#48484a`); iOS red for Delete.
+
+Where Show Time uses iOS blue and Apollo its due-date colors, Low-Hanging Fruit uses a **pear palette**, with dark text on all of it:
+
+| Token | First value | Used for |
+|---|---|---|
+| `--leaf` | `#b5c96b` light green | a done day, a done row, the primary button |
+| `--pear` | `#d9c95a` yellow | a partial day, the active segment, the picked weekday |
+| `--spot` | `#b89a6e` pale brown | a missed scheduled day, the "spots on a ripe pear" |
+
+These are first values, to be tuned on the iPhone in light and dark before milestone 3 closes. Everything the app says is sentence case; section titles are uppercase as a visual device; proper nouns keep their capitals. Every date a human reads is `DD-Mmm-YY` (`17-Oct-26`); the Today title adds the weekday (`Saturday 17-Oct-26`).
+
+### Navigation
+
+An iOS tab bar at the bottom with two tabs, **Today** and **Habits**, and the gear in the header for Settings. (Atoms has four tabs; two is what this app needs.)
+
+### Today
+
+The large title "Today" with the local date beneath. A card of today's scheduled habits, one row each: the action in 17px with the cue beneath in gray, and on the right the control for its goal:
+
+- once a day: a check, tapped to log, tapped again to undo;
+- a count per day: `+` with the count beside it (`3 of 8`), `−` to undo one;
+- a measured amount: a number field with the unit beside it; clearing it undoes.
+
+A done row turns `--leaf` and shows the current streak as `10 days` (`1 day`; `3 weeks` for a weekly habit). A second card, collapsed by default, "Not scheduled today", holds the other active habits with the same controls, so a bonus day can be logged. Empty state: "No habits yet" and an Add button. A change is saved at once and reflected at once; the app does the math.
+
+### Habits
+
+Every active habit in creation order, each row the action over the schedule in words, the current streak on the right. An Add button. An Archived group at the bottom, collapsed, with the archived habits. Tap a row to push its detail.
+
+### Habit (pushed)
+
+The full statement as one sentence, the schedule in words beneath it. Four figures in a 2×2 card: Current streak, Best streak, Completion rate (as a percent, blank when there is nothing to count), Total. Then the **calendar**: one month, this month first, a swipe for earlier months back to `created`, with each day colored by state: done `--leaf`, partial `--pear`, missed `--spot`, unscheduled or future plain. Tapping a past or present day logs it the same way Today does (a check toggles, a count opens a stepper, an amount opens a field); this is the backfill. Below: Edit, Archive (Unarchive on an archived habit), Delete (asks first, red). An archived habit shows its figures frozen at `archived`.
+
+### New and Edit habit (pushed)
+
+The live sentence at the top, assembled as the fields fill. Three fields: "I will…" (the action, required), "…when or where…" (the cue, optional), "…so that I can become…" (the identity, required). A segmented control for the schedule kind, Days / Per week / Every N days, and beneath it the seven-day picker, a number of times, or a number of days. Goal: an amount (1 by default) and a unit (`times` by default; free text with a datalist of Atoms' units: times, steps, cups, ml, liters, oz, hours, min, sec, cal, kcal, miles, km, meters, feet, yards, pounds, kg). Save is disabled until the action, the identity and a valid schedule exist. Editing changes the habit for all time; there is no schedule history (parked). No time, no reminder.
+
+### Settings (sheet)
+
+Sections: **Backup** (web app URL, token, Show token, Save, Back up now, Restore from backup, last backup and last error), **Export** (Export file, Import file), **Appearance** (Theme: Light, Dark, Auto), **Data** (Clear local data, asks first; the backup file is never touched), **Help** (Setup guide), and the versions (the app's, and the script's when the backup has answered).
+
+### Storage
+
+`localStorage` keys `fruit.data` (the document), `fruit.settings` (`{ url, token, theme }`) and `fruit.backup` (`{ lastBackup, pending, lastError }`).
+
+### Hosting and updates
+
+`app/` is published to GitHub Pages by `.github/workflows/pages.yml` on every push to main that touches it, at `https://135crewdog.github.io/fruit/`. `sw.js` is Apollo's: every file network-first and revalidated past the HTTP cache, the cached copy as the offline fallback, API calls never intercepted, and on activation only its own earlier caches (`fruit-*`) deleted, because cache storage is shared by every app on the `github.io` origin. Bump `VERSION` in `sw.js` and `APP_VERSION` in `app.js` on every change to `app/`, or devices keep the old copy.
+
+## Backup
+
+The phone is the source of truth. The backup exists so that a lost or replaced phone, or a removed home-screen app, does not lose the document.
+
+### The script (`apps-script/Code.js`)
+
+A standalone Apps Script, bound to nothing, deployed as a web app (Execute as: Me; Access: Anyone), with the shared secret in Script Properties under `FRUIT_TOKEN` (lowercase letters and digits, eight or more). It keeps one file, `Low-Hanging Fruit.json`, in the owner's Drive root, created empty on the first call. Every response is JSON; Apps Script cannot set status codes, so errors are `{ "ok": false, "error": "..." }`.
+
+- `GET ?token=…` returns `{ ok, version, updated, data }`: the script's `SCRIPT_VERSION`, the stored document's `updated`, and the document (or `null` when the file is empty).
+- `POST` with body `{ token, data }` (Content-Type `text/plain`, because Apps Script does not answer CORS preflights) replaces the file when `data.updated` is later than the stored `updated`, and returns `{ ok, version, updated }`. When the stored document is newer it changes nothing and returns `{ ok: false, error: "backup is newer", updated }`. The body is parsed and `data.v`, `data.updated` and `data.habits` checked before anything is written. Under the script lock.
+
+After a code change, bump `SCRIPT_VERSION`, paste again and deploy a **new version** of the same deployment, or the web app keeps serving old code.
+
+### In the app
+
+- Every change to the document sets `updated` and marks the backup pending. A backup runs a few seconds after the last change when online, and on load, on `online`, when the app becomes visible, and from Back up now, while one is pending. A failure keeps it pending and shows the error in Settings.
+- "Backup is newer" is shown in Settings with a Restore button; nothing is overwritten either way without the user choosing.
+- Restore from backup replaces the local document with the stored one, after asking. On first run with a URL and token saved and no habits, the app offers Restore itself.
+- Export writes the document to `Low-Hanging Fruit.json` through the share sheet. Import reads one, checks `v` and `habits`, and replaces the local document after asking. Both work with no backend at all.
+- The URL and token are typed into Settings once. Never commit either.
+
+## Architecture
+
+```
+CLAUDE.md                 this file, the spec
+README.md                 for developers: tests, API, hosting, version bumps
+app/                      the PWA: index.html, app.js, rules.js, style.css, sw.js, manifest.webmanifest, icons
+app/guide/                the setup guide page
+apps-script/Code.js       the backup web app: doGet, doPost
+tests/*.test.js           node --test: rules.test.js (the tables above), app.test.js (the app's pure helpers)
+tests/browser/            smoke.js drives the app in Chromium at an iPhone viewport; needs Playwright, dev only
+.github/workflows/        test.yml runs node --test and the browser smoke test; pages.yml runs it, then publishes app/ to GitHub Pages from main
+```
+
+Reuse, not reinvention: the shell, the sliding pages and the swipe come from Show Time (ported from React to plain JS); the service worker, storage helpers, theme handling, Settings pattern, tests and workflows come from Apollo.
+
+## Gotchas
+
+- **Today is the local date:** `new Date()` read with `getFullYear()`, `getMonth()`, `getDate()` and formatted `YYYY-MM-DD`. Never `toISOString()` for a day: that is UTC and is wrong every evening.
+- **Date math on numbers.** Add days by building a `Date` from year, month and day at noon local time and reading it back, or by day-count arithmetic; never by adding milliseconds across a DST change.
+- **`updated` is UTC** (`toISOString()`), the one place UTC is right: it orders backups and is never shown.
+- **The weekly streak depends on the week boundary.** Sunday start. Changing it is a parked setting, not a code tweak.
+- **Measured amounts are numbers.** Read the field's `valueAsNumber`; `NaN` or 0 removes the day.
+- **POST with `Content-Type: text/plain`** to the script, as in Apollo.
+- **Bump both version strings** with every change under `app/`, and `SCRIPT_VERSION` with every change to `Code.js`.
+- **The shell is iOS-sized on purpose.** `100vh`/`dvh`, safe-area insets and `overflow: hidden` are expected here. See "An iPhone app shell".
+
+## Deliberately not in the app
+
+- Reminders and notifications of any kind in version 1 (see Parked for the plan).
+- Multiple habit times.
+- Reflections, milestones, an accountability partner, Hall of Fame, Mindset and Focus content.
+- Unit conversion.
+- A profile, an account, or anyone but the owner.
+
+## Parked
+
+Discussed, not adopted, might come back. Ask before building.
+
+- **Reminders.** First a per-habit iOS Shortcuts time-of-day automation that shows a notification and opens the app, documented in the guide. Later, a Shortcut that asks the backend what is still open today and only then notifies, which needs the "due today" rule in the script as well.
+- **Schedule history** (Atoms' "Current schedule since…"): a changed schedule applying only from its change date, so old streaks and rates stay as they were.
+- **Bonus days extending a streak.**
+- **A Monday-start week** setting.
+- **A handoff link** (`#url=…&token=…`) like Apollo's; there is no sheet menu to generate it, so the URL and token are typed once instead.
+- Widgets and Apple Watch.
