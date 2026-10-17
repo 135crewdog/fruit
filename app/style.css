@@ -42,22 +42,23 @@ body {
   height: 100%; overflow: hidden; overscroll-behavior: none;
   font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Helvetica Neue", sans-serif;
   -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale;
-  background: var(--elev); color: var(--text);
+  background: var(--bg); color: var(--text);
 }
 button, input, select { font-family: inherit; touch-action: manipulation; }
 button, input:not([type="checkbox"]), select { -webkit-appearance: none; appearance: none; }
 .hidden { display: none !important; }
 
+/* Sized by inset: 0, never by a viewport unit: 100dvh falls short of the screen in an iOS
+   home-screen app and left a band beneath the tab bar. */
 .app {
   position: fixed; inset: 0;
   max-width: 430px; margin: 0 auto;
-  height: 100vh; height: 100dvh;
   display: flex; flex-direction: column;
   padding-top: env(safe-area-inset-top);
   background: var(--bg);
 }
 
-/* Header: the title follows the tab; the subtitle is today's date on the Today page. */
+/* Header: one line, one height on both pages, so the slide between them is steady. */
 .header {
   flex: none; background: var(--elev); border-bottom: 1px solid var(--border);
   padding: 12px 20px; min-height: 68px;
@@ -65,8 +66,6 @@ button, input:not([type="checkbox"]), select { -webkit-appearance: none; appeara
 }
 .header-text { min-width: 0; }
 .title { font-size: 34px; font-weight: 700; letter-spacing: -0.5px; line-height: 1.1; }
-.subtitle { font-size: 15px; color: var(--text2); margin-top: 2px; font-variant-numeric: tabular-nums; }
-.subtitle:empty { display: none; }
 .title.small { font-size: 17px; font-weight: 600; letter-spacing: 0; position: absolute; left: 50%; transform: translateX(-50%); }
 .icon-btn {
   flex: none; background: var(--fill); border: none; border-radius: 20px;
@@ -140,15 +139,16 @@ button, input:not([type="checkbox"]), select { -webkit-appearance: none; appeara
 .row { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--border); }
 .row:last-child { border-bottom: none; }
 .row .text { flex: 1; min-width: 0; background: transparent; border: none; text-align: left; color: var(--text); padding: 0; cursor: pointer; font: inherit; }
-.row .action { display: block; font-size: 17px; font-weight: 500; line-height: 1.3; }
-.row .cue, .row .meta { display: block; font-size: 13px; color: var(--text2); margin-top: 2px; }
+.row .lead { display: block; font-size: 17px; font-weight: 500; line-height: 1.3; }
+.row .sub, .row .meta { display: block; font-size: 13px; color: var(--text2); margin-top: 2px; }
+.date { font-size: 15px; color: var(--text2); margin-bottom: 12px; font-variant-numeric: tabular-nums; }
 .row .meta b { font-weight: 600; color: var(--text); }
 .row .streak { font-size: 15px; color: var(--text2); white-space: nowrap; font-variant-numeric: tabular-nums; }
 /* A done row turns leaf; a stop row is leaf by default and spot once over the limit. The row
    bleeds to the card's edges so the color reads as the whole row. */
 .row.done, .row.clean { background: var(--leaf); margin: 0 -16px; padding-left: 16px; padding-right: 16px; border-bottom-color: rgba(0, 0, 0, 0.08); }
 .row.over { background: var(--spot); margin: 0 -16px; padding-left: 16px; padding-right: 16px; border-bottom-color: rgba(0, 0, 0, 0.08); }
-.row.done .text, .row.clean .text, .row.over .text, .row.done .cue, .row.clean .cue, .row.over .cue, .row.done .meta, .row.clean .meta, .row.over .meta, .row.done .streak, .row.clean .streak, .row.over .streak { color: var(--on-accent); }
+.row.done .text, .row.clean .text, .row.over .text, .row.done .sub, .row.clean .sub, .row.over .sub, .row.done .meta, .row.clean .meta, .row.over .meta, .row.done .streak, .row.clean .streak, .row.over .streak { color: var(--on-accent); }
 .card.list .row.done:first-child, .card.list .row.clean:first-child, .card.list .row.over:first-child { border-radius: 10px 10px 0 0; }
 .card.list .row.done:last-child, .card.list .row.clean:last-child, .card.list .row.over:last-child { border-radius: 0 0 10px 10px; }
 .card.list .row.done:only-child, .card.list .row.clean:only-child, .card.list .row.over:only-child { border-radius: 10px; }

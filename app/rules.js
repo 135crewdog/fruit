@@ -313,6 +313,18 @@ function scheduleWords(habit) {
   return habit.goal.amount > 1 ? amountWords(habit.goal.amount, habit.goal.unit) + ' a day, ' + lower : base;
 }
 
+/** "Become a morning person": the identity leads every list row. */
+function identityWords(habit) {
+  return ('Become ' + habit.identity).replace(/\s+/g, ' ').trim();
+}
+
+/** "wake up before 6 a.m." or "not drink alcohol on a weeknight": what the day asks, in gray beneath. */
+function actionWords(habit) {
+  var parts = isStop(habit) ? ['not', habit.action] : [habit.action];
+  if (habit.cue) parts.push(habit.cue);
+  return parts.join(' ').replace(/\s+/g, ' ').trim();
+}
+
 /** "I will get out of bed before 6 a.m. so that I can become a morning person." */
 function statement(habit) {
   var parts = ['I will' + (isStop(habit) ? ' not' : ''), habit.action];
@@ -342,6 +354,8 @@ if (typeof module !== 'undefined' && module.exports) {
     figures: figures,
     forgiven: forgiven,
     scheduleWords: scheduleWords,
+    identityWords: identityWords,
+    actionWords: actionWords,
     statement: statement
   };
 }
