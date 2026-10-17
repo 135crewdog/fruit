@@ -67,7 +67,11 @@ function firstWeekStart(habit) {
   return w === 0 ? habit.created : addDays(habit.created, 7 - w);
 }
 
-/** The last day the habit is reckoned to: today, or the day it was archived. */
+/**
+ * The last day the habit is reckoned to: today, or the day it was archived. Every
+ * figure uses this as its "today", so an archived habit is frozen as it stood that
+ * day, an open archive day included.
+ */
 function lastDay(habit, today) {
   return habit.archived && habit.archived < today ? habit.archived : today;
 }
@@ -135,10 +139,10 @@ function weekStatus(habit, ws, today) {
 
 /** Done scheduled days counting back from today, forgiving one miss unless the one before was missed too. */
 function dayStreak(habit, today) {
-  var n = 0, prevMissed = false;
-  for (var d = lastDay(habit, today); d >= habit.created; d = addDays(d, -1)) {
+  var n = 0, prevMissed = false, end = lastDay(habit, today);
+  for (var d = end; d >= habit.created; d = addDays(d, -1)) {
     if (!isScheduled(habit, d)) continue;
-    var st = dayState(habit, d, today);
+    var st = dayState(habit, d, end);
     if (st === 'unsettled') continue;
     if (st === 'done') { n++; prevMissed = false; }
     else { if (prevMissed) break; prevMissed = true; }
@@ -148,9 +152,9 @@ function dayStreak(habit, today) {
 
 /** Met weeks counting back from the current week, forgiving one week short by one unless the one before fell short too. */
 function weekStreak(habit, today) {
-  var n = 0, prevShort = false, first = firstWeekStart(habit);
-  for (var ws = weekStart(lastDay(habit, today)); ws >= first; ws = addDays(ws, -7)) {
-    var st = weekStatus(habit, ws, today);
+  var n = 0, prevShort = false, first = firstWeekStart(habit), end = lastDay(habit, today);
+  for (var ws = weekStart(end); ws >= first; ws = addDays(ws, -7)) {
+    var st = weekStatus(habit, ws, end);
     if (st === 'unsettled') continue;
     if (st === 'met') { n++; prevShort = false; }
     else if (st === 'short1') { if (prevShort) break; prevShort = true; }
@@ -163,12 +167,30 @@ function currentStreak(habit, today) {
   return habit.schedule.kind === 'weekly' ? weekStreak(habit, today) : dayStreak(habit, today);
 }
 
-/** The longest value currentStreak has ever had, found by asking it on every day so far. */
+/**
+ * The longest value currentStreak has ever had. One forward pass carrying the
+ * same run and forgiveness as the walk back: a done unit adds one, a first miss
+ * is carried, a second miss in a row (or a week short by two) resets. A unit that
+ * is still unsettled is skipped, as the walk back skips it.
+ */
 function bestStreak(habit, today) {
-  var best = 0;
-  for (var d = habit.created; d <= lastDay(habit, today); d = addDays(d, 1)) {
-    var s = currentStreak(habit, d);
-    if (s > best) best = s;
+  var end = lastDay(habit, today), best = 0, run = 0, prevMissed = false;
+  function step(st, forgivable) {
+    if (st === 'unsettled') return;
+    if (st === 'done' || st === 'met') { run++; prevMissed = false; }
+    else if (forgivable) { if (prevMissed) run = 0; prevMissed = true; }
+    else { run = 0; prevMissed = false; }
+    if (run > best) best = run;
+  }
+  if (habit.schedule.kind === 'weekly') {
+    for (var ws = firstWeekStart(habit), last = weekStart(end); ws <= last; ws = addDays(ws, 7)) {
+      var w = weekStatus(habit, ws, end);
+      step(w, w === 'short1');
+    }
+  } else {
+    for (var d = habit.created; d <= end; d = addDays(d, 1)) {
+      if (isScheduled(habit, d)) step(dayState(habit, d, end), true);
+    }
   }
   return best;
 }
@@ -178,17 +200,16 @@ function bestStreak(habit, today) {
  * or null when there is nothing to count yet. The rate is done / scheduled.
  */
 function completion(habit, today) {
-  var done = 0, scheduled = 0;
+  var done = 0, scheduled = 0, end = lastDay(habit, today);
   if (habit.schedule.kind === 'weekly') {
-    var end = weekStart(lastDay(habit, today));
-    for (var ws = firstWeekStart(habit); ws < end; ws = addDays(ws, 7)) {
+    for (var ws = firstWeekStart(habit), current = weekStart(end); ws < current; ws = addDays(ws, 7)) {
       scheduled++;
-      if (weekStatus(habit, ws, today) === 'met') done++;
+      if (weekStatus(habit, ws, end) === 'met') done++;
     }
   } else {
-    for (var d = habit.created; d <= lastDay(habit, today); d = addDays(d, 1)) {
+    for (var d = habit.created; d <= end; d = addDays(d, 1)) {
       if (!isScheduled(habit, d)) continue;
-      var st = dayState(habit, d, today);
+      var st = dayState(habit, d, end);
       if (st === 'unsettled') continue;
       scheduled++;
       if (st === 'done') done++;
@@ -203,10 +224,10 @@ function completion(habit, today) {
  * is no bonus for a day on which nothing was asked.
  */
 function total(habit, today) {
-  var n = 0, stop = isStop(habit);
-  for (var d = habit.created; d <= lastDay(habit, today); d = addDays(d, 1)) {
+  var n = 0, stop = isStop(habit), end = lastDay(habit, today);
+  for (var d = habit.created; d <= end; d = addDays(d, 1)) {
     if (stop && !isScheduled(habit, d)) continue;
-    if (dayState(habit, d, today) === 'done') n++;
+    if (dayState(habit, d, end) === 'done') n++;
   }
   return n;
 }
@@ -227,19 +248,20 @@ function figures(habit, today) {
  * was not, so the next miss ends the streak. Drives "Don't miss twice".
  */
 function forgiven(habit, today) {
+  var end = lastDay(habit, today);
   if (habit.schedule.kind === 'weekly') {
     var last = null, before = null;
-    for (var ws = weekStart(lastDay(habit, today)); ws >= firstWeekStart(habit); ws = addDays(ws, -7)) {
-      var st = weekStatus(habit, ws, today);
+    for (var ws = weekStart(end); ws >= firstWeekStart(habit); ws = addDays(ws, -7)) {
+      var st = weekStatus(habit, ws, end);
       if (st === 'unsettled') continue;
       if (last === null) last = st; else { before = st; break; }
     }
     return last === 'short1' && before !== 'short1' && before !== 'short';
   }
   var lastSt = null, beforeSt = null;
-  for (var d = lastDay(habit, today); d >= habit.created; d = addDays(d, -1)) {
+  for (var d = end; d >= habit.created; d = addDays(d, -1)) {
     if (!isScheduled(habit, d)) continue;
-    var s = dayState(habit, d, today);
+    var s = dayState(habit, d, end);
     if (s === 'unsettled') continue;
     if (lastSt === null) lastSt = s; else { beforeSt = s; break; }
   }

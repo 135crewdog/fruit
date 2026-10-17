@@ -149,6 +149,44 @@ test('forgiven is true only while a streak is carrying one forgiven miss', () =>
 });
 
 // ---------------------------------------------------------------------------
+// Archiving and age
+// ---------------------------------------------------------------------------
+
+test('an archived habit is frozen as it stood on the archive day, an open day included', () => {
+  const start = {
+    direction: 'start', created: '2026-10-01', archived: '2026-10-16',
+    schedule: { kind: 'days', days: [1, 2, 3, 4, 5] }, goal: { amount: 1, unit: 'times' },
+    log: { '2026-10-12': 1, '2026-10-13': 1, '2026-10-14': 1, '2026-10-15': 1 }
+  };
+  const stop = { ...start, direction: 'stop', goal: { amount: 0, unit: 'times' }, log: { '2026-10-13': 1 } };
+  for (const habit of [start, stop]) {
+    const onTheDay = rules.figures(habit, '2026-10-16'); // Friday the 16th still open when archived
+    assert.deepEqual(rules.figures(habit, '2026-10-17'), onTheDay);
+    assert.deepEqual(rules.figures(habit, '2027-03-01'), onTheDay);
+    assert.equal(rules.forgiven(habit, '2027-03-01'), rules.forgiven(habit, '2026-10-16'));
+  }
+  assert.deepEqual(rules.figures(start, '2027-03-01'), { streak: 4, best: 4, completion: { done: 4, scheduled: 11 }, total: 4 });
+});
+
+test('figures for a six-year daily habit come back fast enough for a tap', () => {
+  const log = {};
+  for (let d = '2020-10-17'; d <= '2026-10-16'; d = rules.addDays(d, 1)) log[d] = 1;
+  const habit = {
+    direction: 'start', created: '2020-10-17', archived: null,
+    schedule: { kind: 'days', days: [0, 1, 2, 3, 4, 5, 6] }, goal: { amount: 1, unit: 'times' }, log
+  };
+  const stop = { ...habit, direction: 'stop', goal: { amount: 0, unit: 'times' }, log: {} };
+  const t0 = process.hrtime.bigint();
+  const f = rules.figures(habit, '2026-10-17');
+  const g = rules.figures(stop, '2026-10-17');
+  const ms = Number(process.hrtime.bigint() - t0) / 1e6;
+  assert.equal(f.streak, 2191);
+  assert.equal(f.best, 2191);
+  assert.equal(g.total, 2191);
+  assert.ok(ms < 500, 'took ' + ms.toFixed(0) + ' ms');
+});
+
+// ---------------------------------------------------------------------------
 // Words
 // ---------------------------------------------------------------------------
 
