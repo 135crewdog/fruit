@@ -70,11 +70,14 @@ All of this lives in one file, `app/rules.js`: pure functions, no DOM, no storag
 
 | Schedule | A scheduled day is | Current streak | Completion rate |
 |---|---|---|---|
-| `days` | a date whose weekday is in `days` | consecutive scheduled days done, counting back from today; today is skipped, not broken, until it is settled | done scheduled days ÷ scheduled days, from `created` through yesterday, plus today once it is settled |
+| `days` | a date whose weekday is in `days` | done scheduled days, counting back from today until two missed scheduled days in a row; today is skipped until it is settled | done scheduled days ÷ scheduled days, from `created` through yesterday, plus today once it is settled |
 | `every` N | `created` + k·N for k = 0, 1, 2… | as `days` | as `days` |
-| `weekly` N | every day; the week is the unit | consecutive whole weeks with at least N done days, counting back from last week, plus the current week once its settled days include N done | weeks with at least N done days ÷ whole weeks, from the week containing `created` through last week |
+| `weekly` N | every day; the week is the unit | met weeks, counting back from the current week until a week short by two or more, or two weeks short by one in a row; a week is skipped until it is settled | met weeks ÷ whole weeks, from the first Sunday on or after `created` through last week |
 
-- **Today counts once its outcome is settled.** A start habit's day settles when it is done; a stop habit's day settles when the limit is exceeded. Until then today is skipped by every figure: a done start day adds to the streak at once, a slip over the limit drops a stop streak to 0 at once, and a clean-so-far day adds nothing until tomorrow.
+- **Today counts once its outcome is settled.** A start habit's day settles when it is done; a stop habit's day settles when the limit is exceeded. Until then today is skipped by every figure: a done start day adds to the streak at once, a slip over the limit counts against it at once, and a clean-so-far day adds nothing until tomorrow.
+- **A week settles** as met once N of its settled days are done, and as short once it can no longer reach N (its days not yet missed number fewer than N). Until then the current week is skipped. Whole weeks begin at the first Sunday on or after `created`; the days before it are a partial week and count for Total only.
+- **Never miss twice.** A streak survives one missed scheduled day; two missed scheduled days in a row end it. Walking back from today: skip today while unsettled, count the done days, and pass over a miss unless the scheduled day before it was also missed. The forgiven day adds nothing to the streak, still shows as missed on the calendar, and still counts against the completion rate; only the streak forgives. For a stop habit, never slip twice: one day over the limit is forgiven unless the scheduled day before it was over too.
+- **Weeks: short by one.** A week with N−1 done days is forgiven unless the week before it also fell short; a week short by two or more ends the streak, the moment it settles. Same walk back, with the week as the unit.
 - **Stop habits** use the same rules with "done" read as "clean". There is no partial state: a slip within the limit is still a clean day. A stop habit's schedule is `days` or `weekly` (N clean days a week); `every` is not offered, because "every 3 days" means nothing for a habit to stop.
 - **Total** is the number of done days since `created`, scheduled or not. It is a count of days, not a sum of amounts, so a 64-oz habit and a 1-time habit read alike.
 - **Best streak** is the longest current-streak value the habit has ever had, by the same rule.
@@ -95,27 +98,32 @@ Today is **2026-10-17, a Saturday**, unless a row says otherwise. Every logged d
 | 1 | weekdays, created 2026-10-01 | Oct 12, 13, 14, 15, 16 | 5 | 5 | 5/12 | 5 |
 | 2 | weekdays, created 2026-10-01, today 2026-10-16 (Fri), Oct 16 not yet logged | Oct 12, 13, 14, 15 | 4 | 4 | 4/11 | 4 |
 | 3 | weekdays, created 2026-10-01, today 2026-10-16 (Fri) | Oct 12, 13, 14, 15, 16 | 5 | 5 | 5/12 | 5 |
-| 4 | weekdays, created 2026-10-01, today 2026-10-16 (Fri), Oct 16 not yet logged | Oct 12, 13, 14 | 0 | 3 | 3/11 | 3 |
-| 5 | weekdays, created 2026-10-01, today 2026-10-16 (Fri) | Oct 12, 13, 14, 16 | 1 | 3 | 4/12 | 4 |
+| 4 | weekdays, created 2026-10-01, today 2026-10-16 (Fri), Oct 16 not yet logged | Oct 12, 13, 14 | 3 | 3 | 3/11 | 3 |
+| 5 | weekdays, created 2026-10-01, today 2026-10-16 (Fri) | Oct 12, 13, 14, 16 | 4 | 4 | 4/12 | 4 |
 | 6 | weekdays, created 2026-10-01 | Oct 10 (Sat), 12, 13, 14, 15, 16 | 5 | 5 | 5/12 | 6 |
 | 7 | weekdays, created 2026-10-01 | Oct 1, 2, 5, 6, 7, 12, 13 | 0 | 5 | 7/12 | 7 |
 | 8 | weekdays, created 2026-10-17 (today) | none | 0 | 0 | blank | 0 |
-| 9 | weekdays, goal 8 times, created 2026-10-12 | Oct 12: 8, 13: 8, 14: 8, 15: 8, 16: 5 (partial) | 0 | 4 | 4/5 | 4 |
+| 9 | weekdays, goal 8 times, created 2026-10-12 | Oct 12: 8, 13: 8, 14: 8, 15: 8, 16: 5 (partial) | 4 | 4 | 4/5 | 4 |
 | 10 | weekdays, created 2026-10-01, archived 2026-10-10 | Oct 1, 2, 5, 6, 7, 8, 9 | 7 | 7 | 7/7 | 7 |
 | 11 | every 3 days, created 2026-09-28 | Oct 1, 4, 7, 10, 13, 16 | 6 | 6 | 6/7 | 6 |
 | 12 | every 3 days, created 2026-09-28 | Sep 28, Oct 1, 4, 7, 10, 13, 16 | 7 | 7 | 7/7 | 7 |
-| 13 | every 3 days, created 2026-09-28 | Sep 28, Oct 1, 4, 10, 13, 16 | 3 | 3 | 6/7 | 6 |
+| 13 | every 3 days, created 2026-09-28 | Sep 28, Oct 1, 4, 10, 13, 16 | 6 | 6 | 6/7 | 6 |
 | 14 | 3 per week, created 2026-09-27 | Sep 28, 30, Oct 2, 5, 7, 9, 12, 14 | 2 | 2 | 2/2 | 8 |
 | 15 | 3 per week, created 2026-09-27 | Sep 28, 30, Oct 2, 5, 7, 9, 12, 14, 16 | 3 | 3 | 2/2 | 9 |
-| 16 | 3 per week, created 2026-09-27 | Sep 28, 30, Oct 2, 5, 7, 12, 14, 16 | 1 | 1 | 1/2 | 8 |
-| 17 | 3 per week, created 2026-09-27 | Sep 28, 30, Oct 2, 5, 7, 12, 14 | 0 | 1 | 1/2 | 7 |
+| 16 | 3 per week, created 2026-09-27 | Sep 28, 30, Oct 2, 5, 7, 12, 14, 16 | 2 | 2 | 1/2 | 8 |
+| 17 | 3 per week, created 2026-09-27 | Sep 28, 30, Oct 2, 5, 7, 12, 14 | 1 | 1 | 1/2 | 7 |
 | 18 | 3 per week, created 2026-10-11 (this Sunday) | Oct 12, 14, 16 | 1 | 1 | blank | 3 |
-| 19 | stop, every day, limit 0, created 2026-10-01 | slips Oct 5, 10 | 6 | 6 | 14/16 | 14 |
-| 20 | stop, every day, limit 0, created 2026-10-01 | slips Oct 5, 10, 17 (today) | 0 | 6 | 14/17 | 14 |
-| 21 | stop, weekdays, limit 2 drinks, created 2026-10-12 | Oct 12: 1, 13: 3, 14: 2, 16: 2 | 3 | 3 | 4/5 | 4 |
-| 22 | stop, 5 clean days a week, limit 0, created 2026-09-27 | slips Sep 29, Oct 3, 6, 7, 8, 12 | 1 | 1 | 1/2 | 14 |
+| 19 | stop, every day, limit 0, created 2026-10-01 | slips Oct 5, 10 | 14 | 14 | 14/16 | 14 |
+| 20 | stop, every day, limit 0, created 2026-10-01 | slips Oct 5, 10, 17 (today) | 14 | 14 | 14/17 | 14 |
+| 21 | stop, weekdays, limit 2 drinks, created 2026-10-12 | Oct 12: 1, 13: 3, 14: 2, 16: 2 | 4 | 4 | 4/5 | 4 |
+| 22 | stop, 5 clean days a week, limit 0, created 2026-09-27 | slips Sep 29, Oct 3, 6, 7, 8, 12 | 2 | 2 | 1/2 | 14 |
+| 23 | 3 per week, created 2026-09-20 | Sep 21, 23, 25, 28, 30, Oct 5, 7, 12, 14, 16 | 1 | 1 | 1/3 | 10 |
+| 24 | 3 per week, created 2026-09-27 | Sep 28, 30, Oct 2, 7, 12, 14, 16 | 1 | 1 | 1/2 | 7 |
+| 25 | stop, every day, limit 0, created 2026-10-01 | slips Oct 15, 16 | 0 | 14 | 14/16 | 14 |
+| 26 | 5 per week, created 2026-09-27 | Sep 28, 29, 30, Oct 1, 2, 5, 6, 7, 8, 9, 12 | 0 | 2 | 2/2 | 11 |
+| 27 | 3 per week, created 2026-09-20 | Sep 21, 23, 25, 28, 30, Oct 5, 7, 12, 14 | 0 | 1 | 1/3 | 9 |
 
-Notes on the rows. 1: today is a Saturday, unscheduled, so it is skipped; the 12 scheduled days are Oct 1, 2, 5–9, 12–16. 4 and 5: Thursday the 15th was missed. 6: the Saturday is a bonus day. 7: the streak of five ran Oct 1–7, then the 8th was missed. 9: Friday is partial, so the streak stops at Thursday and the rate counts five scheduled days with four done. 10: nothing after Oct 10 is scheduled, so a week of silence costs nothing. 11–13: the scheduled days are Sep 28, Oct 1, 4, 7, 10, 13, 16 (and 19), so the anchor arithmetic crosses the month end; 13 missed Oct 7. 14–17: the whole weeks are Sep 27–Oct 3 and Oct 4–10, the current week is Oct 11–17; 16 has only two done days in the week of Oct 4, which breaks the run, and the current week's three add one; 17 has two in the current week too. 18: no whole week has passed, so the rate is blank while the met current week gives a streak of one. 19: today has no slip yet, so it is unsettled and skipped; Oct 11–16 are clean. 20: a slip today settles it as missed, so the streak is 0 and today joins the rate. 21: Tuesday went over the limit; Thursday, with nothing logged, is clean. 22: the week of Sep 27 has five clean days (met), the week of Oct 4 has four (unmet, which breaks the run), and the current week's settled days Oct 11, 13, 14, 15, 16 are five clean, so it adds one; Total counts clean days through yesterday.
+Notes on the rows. 1: today is a Saturday, unscheduled, so it is skipped; the 12 scheduled days are Oct 1, 2, 5–9, 12–16. 4: Thursday the 15th was missed and is forgiven, because Wednesday was done; today is still open. If Friday ends undone, two misses in a row end the streak. 5: the same miss forgiven with Friday done; the walk then runs back to Friday the 9th and Thursday the 8th, both missed, which ends it. 6: the Saturday is a bonus day. 7: Thursday the 15th and Friday the 16th are both missed, so the streak is 0; the best was Oct 1–7. 9: Friday is partial, so not done, but Thursday was done, so it is forgiven; the rate still counts it as missed. 10: nothing after Oct 10 is scheduled, so a week of silence costs nothing. 11–13: the scheduled days are Sep 28, Oct 1, 4, 7, 10, 13, 16 (and 19), so the anchor arithmetic crosses the month end; 13 missed Oct 7, forgiven because Oct 4 was done. 14–17: the whole weeks are Sep 27–Oct 3 and Oct 4–10, the current week is Oct 11–17. 14: the current week has two done days and today still open, so it is unsettled and skipped. 15: three done days settle the current week as met. 16: the week of Oct 4 has two done days, one short, forgiven because the week before was met; the current week is met, so the streak is 2. 17: the same short week forgiven, the current week still open. 18: no whole week has passed, so the rate is blank while the met current week gives a streak of one. 19: two isolated slips, each forgiven because the day before it was clean; today has no slip yet, so it is unsettled and skipped. 20: a slip today settles it as missed and puts it in the rate, but yesterday was clean, so it is forgiven and the streak stands. 21: Tuesday went over the limit, forgiven because Monday was within it; Thursday, with nothing logged, is clean. 22: the week of Sep 27 has five clean days (met), the week of Oct 4 has four (one short, forgiven), and the current week's settled days Oct 11, 13, 14, 15, 16 are five clean, so it is met; Total counts clean days through yesterday. 23: the weeks of Sep 27 and Oct 4 are each one short, two in a row, which ends the run; the met current week gives 1. 24: the week of Oct 4 has one done day, two short, not forgiven. 25: two slips in a row end the streak; the best was Oct 1–14. 26: the current week has one done day and one day left, so it can no longer reach five: it has settled short by four and ends the streak now. 27: as 23 with the current week still open, so nothing counts yet.
 
 ### Schedule in words
 
@@ -167,7 +175,7 @@ The large title "Today" with the local date beneath. A card of today's scheduled
 - a measured amount: a number field with the unit beside it; clearing it undoes;
 - a stop habit: a Slipped `+` (with the count beside it, `1 of 2`, when the limit is above 0), `−` to undo one.
 
-A done row turns `--leaf` and shows the current streak as `10 days` (`1 day`; `3 weeks` for a weekly habit). A stop habit's row is `--leaf` from the start of the day, clean so far, and turns `--spot` once the limit is passed. A second card, collapsed by default, "Not scheduled today", holds the other active habits with the same controls, so a bonus day can be logged. Empty state: "No habits yet" and an Add button. A change is saved at once and reflected at once; the app does the math.
+A done row turns `--leaf` and shows the current streak as `10 days` (`1 day`; `3 weeks` for a weekly habit). A stop habit's row is `--leaf` from the start of the day, clean so far, and turns `--spot` once the limit is passed. A row whose streak is carrying a forgiven miss (yesterday's scheduled day missed, or last week one short) says `Don't miss twice` (`Don't slip twice` for a stop habit) in gray under the streak; it is the only nudge the app gives. A second card, collapsed by default, "Not scheduled today", holds the other active habits with the same controls, so a bonus day can be logged. Empty state: "No habits yet" and an Add button. A change is saved at once and reflected at once; the app does the math.
 
 ### Habits
 
@@ -235,6 +243,7 @@ Reuse, not reinvention: the shell, the sliding pages and the swipe come from Sho
 - **Date math on numbers.** Add days by building a `Date` from year, month and day at noon local time and reading it back, or by day-count arithmetic; never by adding milliseconds across a DST change.
 - **`updated` is UTC** (`toISOString()`), the one place UTC is right: it orders backups and is never shown.
 - **The weekly streak depends on the week boundary.** Sunday start. Changing it is a parked setting, not a code tweak.
+- **Forgiveness is stateless.** Never miss twice is read off the log each time; nothing records that a miss was forgiven, so there is nothing to earn, store or restore.
 - **Measured amounts are numbers.** Read the field's `valueAsNumber`; `NaN` or 0 removes the day.
 - **POST with `Content-Type: text/plain`** to the script, as in Apollo.
 - **Bump both version strings** with every change under `app/`, and `SCRIPT_VERSION` with every change to `Code.js`.
@@ -255,6 +264,7 @@ Discussed, not adopted, might come back. Ask before building.
 - **Reminders.** First a per-habit iOS Shortcuts time-of-day automation that shows a notification and opens the app, documented in the guide. Later, a Shortcut that asks the backend what is still open today and only then notifies, which needs the "due today" rule in the script as well.
 - **Schedule history** (Atoms' "Current schedule since…"): a changed schedule applying only from its change date, so old streaks and rates stay as they were.
 - **Bonus days extending a streak.**
+- **Earned or stored mulligans** (Duolingo's streak freeze). Never miss twice is the rule; an inventory of forgiveness is not.
 - **A Monday-start week** setting.
 - **A handoff link** (`#url=…&token=…`) like Apollo's; there is no sheet menu to generate it, so the URL and token are typed once instead.
 - **Other palettes.** Peach, blackberry and so on as a Settings choice; pear is the only one in version 1. The tokens are named by role (`--leaf`, `--pear`, `--spot`) so a palette is three values.
