@@ -1,0 +1,188 @@
+'use strict';
+const test = require('node:test');
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
+const rules = require('../app/rules.js');
+
+// ---------------------------------------------------------------------------
+// Required test cases (copied from CLAUDE.md line for line; do not edit values)
+// ---------------------------------------------------------------------------
+
+// | # | Habit | Log | Current streak | Best streak | Completion | Total |
+const ROWS = [
+  '| 1 | weekdays, created 2026-10-01 | Oct 12, 13, 14, 15, 16 | 5 | 5 | 5/12 | 5 |',
+  '| 2 | weekdays, created 2026-10-01, today 2026-10-16 (Fri), Oct 16 not yet logged | Oct 12, 13, 14, 15 | 4 | 4 | 4/11 | 4 |',
+  '| 3 | weekdays, created 2026-10-01, today 2026-10-16 (Fri) | Oct 12, 13, 14, 15, 16 | 5 | 5 | 5/12 | 5 |',
+  '| 4 | weekdays, created 2026-10-01, today 2026-10-16 (Fri), Oct 16 not yet logged | Oct 12, 13, 14 | 3 | 3 | 3/11 | 3 |',
+  '| 5 | weekdays, created 2026-10-01, today 2026-10-16 (Fri) | Oct 12, 13, 14, 16 | 4 | 4 | 4/12 | 4 |',
+  '| 6 | weekdays, created 2026-10-01 | Oct 10 (Sat), 12, 13, 14, 15, 16 | 5 | 5 | 5/12 | 6 |',
+  '| 7 | weekdays, created 2026-10-01 | Oct 1, 2, 5, 6, 7, 12, 13 | 0 | 5 | 7/12 | 7 |',
+  '| 8 | weekdays, created 2026-10-17 (today) | none | 0 | 0 | blank | 0 |',
+  '| 9 | weekdays, goal 8 times, created 2026-10-12 | Oct 12: 8, 13: 8, 14: 8, 15: 8, 16: 5 (partial) | 4 | 4 | 4/5 | 4 |',
+  '| 10 | weekdays, created 2026-10-01, archived 2026-10-10 | Oct 1, 2, 5, 6, 7, 8, 9 | 7 | 7 | 7/7 | 7 |',
+  '| 11 | every 3 days, created 2026-09-28 | Oct 1, 4, 7, 10, 13, 16 | 6 | 6 | 6/7 | 6 |',
+  '| 12 | every 3 days, created 2026-09-28 | Sep 28, Oct 1, 4, 7, 10, 13, 16 | 7 | 7 | 7/7 | 7 |',
+  '| 13 | every 3 days, created 2026-09-28 | Sep 28, Oct 1, 4, 10, 13, 16 | 6 | 6 | 6/7 | 6 |',
+  '| 14 | 3 per week, created 2026-09-27 | Sep 28, 30, Oct 2, 5, 7, 9, 12, 14 | 2 | 2 | 2/2 | 8 |',
+  '| 15 | 3 per week, created 2026-09-27 | Sep 28, 30, Oct 2, 5, 7, 9, 12, 14, 16 | 3 | 3 | 2/2 | 9 |',
+  '| 16 | 3 per week, created 2026-09-27 | Sep 28, 30, Oct 2, 5, 7, 12, 14, 16 | 2 | 2 | 1/2 | 8 |',
+  '| 17 | 3 per week, created 2026-09-27 | Sep 28, 30, Oct 2, 5, 7, 12, 14 | 1 | 1 | 1/2 | 7 |',
+  '| 18 | 3 per week, created 2026-10-11 (this Sunday) | Oct 12, 14, 16 | 1 | 1 | blank | 3 |',
+  '| 19 | stop, every day, limit 0, created 2026-10-01 | slips Oct 5, 10 | 14 | 14 | 14/16 | 14 |',
+  '| 20 | stop, every day, limit 0, created 2026-10-01 | slips Oct 5, 10, 17 (today) | 14 | 14 | 14/17 | 14 |',
+  '| 21 | stop, weekdays, limit 2 drinks, created 2026-10-12 | Oct 12: 1, 13: 3, 14: 2, 16: 2 | 4 | 4 | 4/5 | 4 |',
+  '| 22 | stop, 5 clean days a week, limit 0, created 2026-09-27 | slips Sep 29, Oct 3, 6, 7, 8, 12 | 2 | 2 | 1/2 | 14 |',
+  '| 23 | 3 per week, created 2026-09-20 | Sep 21, 23, 25, 28, 30, Oct 5, 7, 12, 14, 16 | 1 | 1 | 1/3 | 10 |',
+  '| 24 | 3 per week, created 2026-09-27 | Sep 28, 30, Oct 2, 7, 12, 14, 16 | 1 | 1 | 1/2 | 7 |',
+  '| 25 | stop, every day, limit 0, created 2026-10-01 | slips Oct 15, 16 | 0 | 14 | 14/16 | 14 |',
+  '| 26 | 5 per week, created 2026-09-27 | Sep 28, 29, 30, Oct 1, 2, 5, 6, 7, 8, 9, 12 | 0 | 2 | 2/2 | 11 |',
+  '| 27 | 3 per week, created 2026-09-20 | Sep 21, 23, 25, 28, 30, Oct 5, 7, 12, 14 | 0 | 1 | 1/3 | 9 |'
+];
+
+const DEFAULT_TODAY = '2026-10-17'; // a Saturday
+const MONTHS = { Jan: 1, Feb: 2, Mar: 3, Apr: 4, May: 5, Jun: 6, Jul: 7, Aug: 8, Sep: 9, Oct: 10, Nov: 11, Dec: 12 };
+
+/** Turns a table row into a habit, the day it is reckoned on, and the expected figures. */
+function parseRow(row) {
+  const cells = row.split('|').slice(1, -1).map((c) => c.trim());
+  const [n, desc, log, streak, best, completionText, totalText] = cells;
+  const habit = {
+    id: 'row' + n, action: 'test', cue: '', identity: 'tested', direction: 'start',
+    created: null, archived: null, schedule: null, goal: { amount: 1, unit: 'times' }, log: {}
+  };
+  let today = DEFAULT_TODAY, m;
+  for (const token of desc.split(', ')) {
+    if (token === 'stop') { habit.direction = 'stop'; habit.goal.amount = 0; }
+    else if (token === 'weekdays') habit.schedule = { kind: 'days', days: [1, 2, 3, 4, 5] };
+    else if (token === 'every day') habit.schedule = { kind: 'days', days: [0, 1, 2, 3, 4, 5, 6] };
+    else if ((m = /^every (\d+) days$/.exec(token))) habit.schedule = { kind: 'every', days: +m[1] };
+    else if ((m = /^(\d+) per week$/.exec(token)) || (m = /^(\d+) clean days a week$/.exec(token))) habit.schedule = { kind: 'weekly', times: +m[1] };
+    else if ((m = /^goal (\d+) (\w+)$/.exec(token))) habit.goal = { amount: +m[1], unit: m[2] };
+    else if ((m = /^limit (\d+)(?: (\w+))?$/.exec(token))) habit.goal = { amount: +m[1], unit: m[2] || 'times' };
+    else if ((m = /^created (\S+)/.exec(token))) habit.created = m[1];
+    else if ((m = /^archived (\S+)/.exec(token))) habit.archived = m[1];
+    else if ((m = /^today (\S+)/.exec(token))) today = m[1];
+    else if (/not yet logged$/.test(token)) { /* says only that today is open */ }
+    else throw new Error('row ' + n + ': cannot read "' + token + '"');
+  }
+  if (log !== 'none') {
+    // A logged day is done (amount at goal) unless an amount is given; a slip is one over the limit.
+    const fallback = habit.direction === 'stop' ? habit.goal.amount + 1 : habit.goal.amount;
+    let month = null;
+    for (const item of log.replace(/^slips /, '').split(', ')) {
+      m = /^(?:([A-Z][a-z]{2}) )?(\d+)(?:: (\d+))?(?: \([^)]*\))?$/.exec(item);
+      if (!m) throw new Error('row ' + n + ': cannot read log item "' + item + '"');
+      if (m[1]) month = MONTHS[m[1]];
+      habit.log['2026-' + String(month).padStart(2, '0') + '-' + m[2].padStart(2, '0')] = m[3] ? +m[3] : fallback;
+    }
+  }
+  return { n: +n, habit, today, expect: { streak: +streak, best: +best, completion: completionText, total: +totalText } };
+}
+
+function completionText(c) { return c ? c.done + '/' + c.scheduled : 'blank'; }
+
+for (const row of ROWS) {
+  const { n, habit, today, expect } = parseRow(row);
+  test('row ' + n + ': ' + row.split('|')[2].trim(), () => {
+    const f = rules.figures(habit, today);
+    assert.deepEqual(
+      { streak: f.streak, best: f.best, completion: completionText(f.completion), total: f.total },
+      expect
+    );
+  });
+}
+
+test('the rows above are the rows in CLAUDE.md, line for line', () => {
+  const spec = fs.readFileSync(path.join(__dirname, '..', 'CLAUDE.md'), 'utf8').split('\n');
+  const inSpec = spec.filter((line) => /^\| \d+ \| /.test(line) && /\| (blank|\d+\/\d+) \| \d+ \|$/.test(line));
+  assert.deepEqual(inSpec, ROWS);
+});
+
+// ---------------------------------------------------------------------------
+// Dates
+// ---------------------------------------------------------------------------
+
+test('weekday and weekStart follow the iPhone calendar, Sunday first', () => {
+  assert.equal(rules.weekday('2026-10-17'), 6); // Saturday
+  assert.equal(rules.weekday('2026-10-11'), 0); // Sunday
+  assert.equal(rules.weekday('2026-10-01'), 4); // Thursday
+  assert.equal(rules.weekStart('2026-10-17'), '2026-10-11');
+  assert.equal(rules.weekStart('2026-10-11'), '2026-10-11');
+});
+
+test('addDays crosses month and year ends on numbers', () => {
+  assert.equal(rules.addDays('2026-09-28', 3), '2026-10-01');
+  assert.equal(rules.addDays('2026-12-31', 1), '2027-01-01');
+  assert.equal(rules.addDays('2028-03-01', -1), '2028-02-29');
+  assert.equal(rules.daysBetween('2026-09-28', '2026-10-16'), 18);
+});
+
+test('localToday reads the local calendar, not UTC', () => {
+  // 23:30 local on the 17th is the 18th in UTC for anyone west of Greenwich; the local date must win.
+  const late = new Date(2026, 9, 17, 23, 30);
+  assert.equal(rules.localToday(late), '2026-10-17');
+  assert.equal(rules.isIsoDate('2026-02-29'), false);
+  assert.equal(rules.isIsoDate('2028-02-29'), true);
+  assert.equal(rules.isIsoDate('17-Oct-26'), false);
+});
+
+test('firstWeekStart is the first Sunday on or after created', () => {
+  const h = (created) => ({ created, schedule: { kind: 'weekly', times: 3 }, goal: { amount: 1 }, log: {} });
+  assert.equal(rules.firstWeekStart(h('2026-10-11')), '2026-10-11');
+  assert.equal(rules.firstWeekStart(h('2026-10-14')), '2026-10-18');
+});
+
+// ---------------------------------------------------------------------------
+// Forgiveness hint
+// ---------------------------------------------------------------------------
+
+test('forgiven is true only while a streak is carrying one forgiven miss', () => {
+  const byNumber = Object.fromEntries(ROWS.map(parseRow).map((r) => [r.n, r]));
+  const check = (n, expected) => assert.equal(rules.forgiven(byNumber[n].habit, byNumber[n].today), expected, 'row ' + n);
+  check(1, false);  // nothing missed
+  check(4, true);   // Thursday missed, Friday open
+  check(7, false);  // two misses in a row: nothing left to forgive
+  check(17, true);  // last week one short, this week open
+  check(23, false); // two short weeks in a row
+  check(20, true);  // a slip today, yesterday clean
+});
+
+// ---------------------------------------------------------------------------
+// Words
+// ---------------------------------------------------------------------------
+
+test('scheduleWords follows the "Schedule in words" table', () => {
+  const w = (schedule, goal, direction) => rules.scheduleWords({ schedule, goal: goal || { amount: 1, unit: 'times' }, direction: direction || 'start' });
+  assert.equal(w({ kind: 'days', days: [0, 1, 2, 3, 4, 5, 6] }), 'Every day');
+  assert.equal(w({ kind: 'days', days: [1, 2, 3, 4, 5] }), 'Weekdays');
+  assert.equal(w({ kind: 'days', days: [6, 0] }), 'Weekends');
+  assert.equal(w({ kind: 'days', days: [5, 1, 3] }), 'Mon, Wed, Fri');
+  assert.equal(w({ kind: 'weekly', times: 3 }), '3 times a week');
+  assert.equal(w({ kind: 'weekly', times: 1 }), 'Once a week');
+  assert.equal(w({ kind: 'every', days: 3 }), 'Every 3 days');
+  assert.equal(w({ kind: 'every', days: 2 }), 'Every other day');
+  assert.equal(w({ kind: 'every', days: 1 }), 'Every day');
+  assert.equal(w({ kind: 'days', days: [1, 2, 3, 4, 5] }, { amount: 8, unit: 'times' }), '8 times a day, weekdays');
+  assert.equal(w({ kind: 'every', days: 3 }, { amount: 2, unit: 'miles' }), '2 miles a day, every 3 days');
+  assert.equal(w({ kind: 'weekly', times: 3 }, { amount: 64, unit: 'oz' }), '64 oz a day, 3 times a week');
+  assert.equal(w({ kind: 'days', days: [5, 1, 3] }, { amount: 2, unit: 'miles' }), '2 miles a day, Mon, Wed, Fri');
+  assert.equal(w({ kind: 'days', days: [1, 2, 3, 4, 5] }, { amount: 0, unit: 'times' }, 'stop'), 'Weekdays');
+  assert.equal(w({ kind: 'days', days: [1, 2, 3, 4, 5] }, { amount: 2, unit: 'drinks' }, 'stop'), 'Up to 2 drinks a day, weekdays');
+  assert.equal(w({ kind: 'weekly', times: 5 }, { amount: 0, unit: 'times' }, 'stop'), '5 clean days a week');
+});
+
+test('statement assembles the sentence for both directions', () => {
+  assert.equal(
+    rules.statement({ direction: 'start', action: 'get out of bed', cue: 'before 6 a.m.', identity: 'a morning person' }),
+    'I will get out of bed before 6 a.m. so that I can become a morning person.'
+  );
+  assert.equal(
+    rules.statement({ direction: 'stop', action: 'drink more than two beers', cue: 'on a weeknight', identity: 'a clear-headed person' }),
+    'I will not drink more than two beers on a weeknight so that I can become a clear-headed person.'
+  );
+  assert.equal(
+    rules.statement({ direction: 'start', action: 'floss', cue: '', identity: 'someone who keeps their teeth' }),
+    'I will floss so that I can become someone who keeps their teeth.'
+  );
+});

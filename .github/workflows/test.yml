@@ -1,0 +1,16 @@
+# Unit tests on every push and pull request. The browser smoke test joins in milestone 3,
+# and pages.yml will call this workflow as the gate in front of the Pages deploy.
+name: Tests
+on:
+  push:
+  pull_request:
+  workflow_call:
+jobs:
+  unit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node --test
