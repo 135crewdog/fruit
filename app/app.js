@@ -67,7 +67,8 @@ function cycleAmount(habit, amount, isLogged, isToday) {
     return amount === 0 ? 1 : NaN;
   }
   if (amount > 0) return isToday ? 0 : NaN;
-  return isLogged ? NaN : 1;
+  // A past 0 and a past blank are the same missed day, so either goes straight to done.
+  return isLogged && isToday ? NaN : 1;
 }
 
 /** '74%' from a completion object, '' when there is nothing to count. */
@@ -345,7 +346,7 @@ if (typeof document !== 'undefined') {
       var row = el('div', 'row');
       if (stop) { if (st === 'missed') row.classList.add('over'); else if (st === 'done') row.classList.add('clean'); }
       else if (st === 'done') row.classList.add('done');
-      else if (st === 'missed' && marked && a === 0) row.classList.add('over'); // marked not today
+      else if (st === 'missed' && marked && a === 0 && kind === 'check') row.classList.add('over'); // marked not today
 
       var text = button('text', null, function () { openHabit(h.id); });
       text.appendChild(el('span', 'lead', R.identityWords(h)));
@@ -362,8 +363,9 @@ if (typeof document !== 'undefined') {
         // slipped), then the ring again. No word names the state.
         var on = stop ? marked && a === 0 : a > 0;
         var slip = stop ? a > 0 : marked && a === 0;
-        var label = stop ? (!marked ? 'Mark the day: nothing to report' : a === 0 ? 'Slipped' : 'Clear the day')
-          : (!marked ? 'Done' : a > 0 ? 'Not today' : 'Clear the day');
+        var label = stop
+          ? (!marked ? 'Not yet marked. Tap to mark nothing to report' : a === 0 ? 'Nothing to report. Tap to mark a slip' : 'Slipped. Tap to clear')
+          : (!marked ? 'Not yet done. Tap to mark done' : a > 0 ? 'Done. Tap to mark not today' : 'Not today. Tap to clear');
         control = button('check' + (on ? ' on' : '') + (slip ? ' slip' : ''), null, function () {
           setAmount(h, date, cycleAmount(h, a, marked, date === ui.today));
         }, label);
