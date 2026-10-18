@@ -237,6 +237,15 @@ test('scheduleWords follows the "Schedule in words" table', () => {
   assert.equal(w({ kind: 'weekly', times: 5 }, { amount: 0, unit: 'times' }, 'stop'), '5 days a week');
 });
 
+test('a kept 0 is the not-today mark only on a once-a-day habit', () => {
+  const t = '2026-10-17';
+  const base = { created: '2026-10-01', archived: null, direction: 'start', schedule: { kind: 'days', days: [0, 1, 2, 3, 4, 5, 6] }, log: { [t]: 0 } };
+  assert.equal(rules.dayState({ ...base, goal: { amount: 1, unit: 'times' } }, t, t), 'missed', 'once a day: marked not today');
+  assert.equal(rules.dayState({ ...base, goal: { amount: 8, unit: 'times' } }, t, t), 'unsettled', 'a count edited from once a day: the 0 means nothing');
+  assert.equal(rules.dayState({ ...base, goal: { amount: 2, unit: 'miles' } }, t, t), 'unsettled', 'an amount: the 0 means nothing');
+  assert.equal(rules.dayState({ ...base, goal: { amount: 1, unit: 'times' } }, '2026-10-10', t), 'missed', 'a past 0 is a missed day like a blank');
+});
+
 test('snoozeRange turns the sheet\'s choice into a range starting today', () => {
   const t = '2026-10-17'; // a Saturday
   assert.deepEqual(rules.snoozeRange('tomorrow', t), { from: t, to: '2026-10-17' });

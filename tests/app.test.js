@@ -43,9 +43,10 @@ test('the once-a-day pill cycles ring, check, cross, ring', () => {
   assert.equal(app.cycleAmount(start, 0, false, true), 1);
   assert.equal(app.cycleAmount(start, 1, true, true), 0);
   assert.ok(Number.isNaN(app.cycleAmount(start, 0, true, true)));
-  // start, a past day: done ↔ nothing; a past 0 and a past blank are the same missed day
+  // start, a past day: done ↔ nothing; a past 0 and a past blank are the same missed day, so either goes to done in one tap
   assert.ok(Number.isNaN(app.cycleAmount(start, 1, true, false)));
   assert.equal(app.cycleAmount(start, 0, false, false), 1);
+  assert.equal(app.cycleAmount(start, 0, true, false), 1);
   // stop, limit 0: nothing → marked → slipped → nothing, today or not
   assert.equal(app.cycleAmount(stop, 0, false, true), 0);
   assert.equal(app.cycleAmount(stop, 0, true, true), 1);

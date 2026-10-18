@@ -155,7 +155,7 @@ button, input:not([type="checkbox"]), select { -webkit-appearance: none; appeara
 .card.list .row.done:only-child, .card.list .row.clean:only-child, .card.list .row.over:only-child { border-radius: 10px; }
 
 /* The pill: every row's control is the same shape and size, at the right, so the column lines up. */
-.row .check, .row .stepper, .row .amount { flex: none; width: 128px; height: 40px; border-radius: 10px; background: var(--fill); }
+.row .check, .row .stepper, .row .amount, .day-editor .stepper, .day-editor .amount { flex: none; width: 128px; height: 40px; border-radius: 10px; background: var(--fill); }
 .row.done .check, .row.clean .check, .row.over .check, .row.done .stepper, .row.clean .stepper, .row.over .stepper, .row.done .amount { background: rgba(0, 0, 0, 0.12); }
 /* Once a day: one pill that cycles ring, check, cross. */
 .check { border: none; display: flex; align-items: center; justify-content: center; color: var(--on-accent); cursor: pointer; font-size: 18px; font-weight: 600; line-height: 1; }
@@ -174,8 +174,8 @@ button, input:not([type="checkbox"]), select { -webkit-appearance: none; appeara
 .stepper.partial button, .stepper.partial .n { color: var(--on-accent); }
 .row.done .stepper button, .row.done .stepper .n, .row.clean .stepper button, .row.clean .stepper .n, .row.over .stepper button, .row.over .stepper .n { color: var(--on-accent); }
 .amount { display: flex; align-items: center; justify-content: center; gap: 5px; }
-.row .amount input[type="number"] { width: 4ch; padding: 0; background: transparent; border: none; color: var(--text); font-size: 15px; font-weight: 600; text-align: right; }
-.row .amount input[type="number"]::placeholder { color: var(--text2); }
+.row .amount input[type="number"], .day-editor .amount input[type="number"] { width: 4ch; padding: 0; background: transparent; border: none; color: var(--text); font-size: 15px; font-weight: 600; text-align: right; }
+.amount input[type="number"]::placeholder { color: var(--text2); }
 .amount span { font-size: 15px; font-weight: 600; color: var(--text); }
 .row.done .amount input[type="number"], .row.done .amount span { color: var(--on-accent); }
 /* The control a finger lands on answers at once: it scales up and back as it is redrawn. */
