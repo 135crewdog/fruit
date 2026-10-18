@@ -235,7 +235,9 @@ if (typeof document !== 'undefined') {
       if (!quiet) render();
     }
     function setAmount(habit, date, amount, quiet) {
-      ui.popFrom = fillState(habit, date); // where the row's fill was, so it can animate from there
+      // Where the row's fill was, so it can animate from there. A measured field writes quietly on every
+      // keystroke, so the first write records the start and the later ones leave it alone until a redraw.
+      if (!ui.popFrom || ui.popFrom.id !== habit.id) ui.popFrom = { id: habit.id, fill: fillState(habit, date) };
       habit.log = withAmount(habit.log, date, amount, habit.direction === 'stop' || controlKind(habit) === 'check');
       ui.pop = habit.id; // the control that changed pops once when it is redrawn
       commit(quiet);
@@ -347,6 +349,7 @@ if (typeof document !== 'undefined') {
       if (ui.habitId) renderDetail();
       $('theme').value = settings.theme;
       $('palette').value = settings.palette;
+      ui.pop = null; ui.popFrom = null; // a redraw consumes the pending pop and its starting fill
     }
 
     function renderHeader() {
@@ -365,7 +368,7 @@ if (typeof document !== 'undefined') {
       if (fs.bg === 'pear') { row.classList.add('part'); row.style.setProperty('--p', String(fs.p)); }
       if (ui.pop === h.id && date === ui.today && fs.bg) {
         // Animate from the previous fill to this one; from nothing, the new color simply sweeps in.
-        var from = ui.popFrom || { p: 0, bg: '' };
+        var from = ui.popFrom && ui.popFrom.id === h.id ? ui.popFrom.fill : { p: 0, bg: '' };
         row.classList.add('anim');
         row.style.setProperty('--from', String(from.p));
         row.style.setProperty('--from-bg', 'var(--' + (from.bg || fs.bg) + ')');

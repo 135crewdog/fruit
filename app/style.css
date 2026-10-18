@@ -108,10 +108,6 @@ button, input:not([type="checkbox"]), select { -webkit-appearance: none; appeara
 .sheet { transform: translateY(100%); }
 .screen.open, .sheet.open { transform: none; visibility: visible; }
 .screen .scroll, .sheet .scroll { flex: 1; min-height: 0; padding-bottom: calc(32px + env(safe-area-inset-bottom)); }
-@media (prefers-reduced-motion: reduce) {
-  .pages, .screen, .sheet { transition: none; }
-  .row .pop, .row.anim::before { animation: none; }
-}
 
 /* Sections and cards */
 .section { margin-bottom: 24px; }
@@ -158,6 +154,10 @@ button, input:not([type="checkbox"]), select { -webkit-appearance: none; appeara
 .row.part::before { transform: scaleX(var(--p, 0)); background: var(--pear); opacity: 0.5; }
 .row.anim::before { animation: fill 0.3s ease-out; }
 @keyframes fill { from { transform: scaleX(var(--from, 0)); background-color: var(--from-bg, var(--leaf)); } }
+/* The text keeps its plain color until the sweep has reached it, so a palette with light text on
+   its accents (Blackberry) never shows light text on the card's white for the length of the sweep. */
+.row.anim.done .text, .row.anim.clean .text, .row.anim.over .text, .row.anim.done .sub, .row.anim.clean .sub, .row.anim.over .sub { animation: fill-text 0.3s steps(1, end); }
+@keyframes fill-text { from { color: var(--text); } }
 .row.done, .row.clean, .row.over { border-bottom-color: rgba(0, 0, 0, 0.08); }
 .row.done .text, .row.clean .text, .row.over .text, .row.done .sub, .row.clean .sub, .row.over .sub, .row.done .streak, .row.clean .streak, .row.over .streak { color: var(--on-accent); }
 
@@ -300,4 +300,10 @@ input[type="date"] { background: var(--fill); border: none; border-radius: 8px; 
   position: fixed; left: 50%; bottom: calc(96px + env(safe-area-inset-bottom)); transform: translateX(-50%);
   background: var(--text); color: var(--bg); padding: 10px 14px; border-radius: 10px; font-size: 14px;
   max-width: 90vw; box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25); z-index: 10;
+}
+
+/* Reduced motion: every slide is a cut and nothing sweeps or pops. Last, so it wins every cascade above. */
+@media (prefers-reduced-motion: reduce) {
+  .pages, .screen, .sheet { transition: none; }
+  .row .pop, .row.anim::before, .row.anim .text, .row.anim .sub { animation: none; }
 }
