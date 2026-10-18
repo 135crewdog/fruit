@@ -9,7 +9,7 @@
  */
 'use strict';
 
-var APP_VERSION = '2026.10.17.8';
+var APP_VERSION = '2026.10.18.1';
 var STORAGE = { settings: 'fruit.settings', data: 'fruit.data', backup: 'fruit.backup' };
 var MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 var LONG_DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
@@ -190,7 +190,7 @@ if (typeof document !== 'undefined') {
     if (!doc || doc.v !== 1 || !Array.isArray(doc.habits)) doc = emptyDocument();
     var ui = {
       today: R.localToday(), tab: 0, habitId: null, editId: null, draft: null,
-      calMonth: null, selected: null, showUnscheduled: false, showArchived: false
+      calMonth: null, selected: null, showUnscheduled: false, showArchived: false, snooze: 'tomorrow'
     };
     var toastTimer = null;
 
@@ -427,7 +427,8 @@ if (typeof document !== 'undefined') {
       var row = el('div', 'row');
       var text = button('text', null, function () { openHabit(h.id); });
       text.appendChild(el('span', 'lead', R.identityWords(h)));
-      text.appendChild(el('span', 'sub', R.actionWords(h) + ' · ' + R.scheduleWords(h) + (h.archived ? ' · archived ' + formatDisplayDate(h.archived) : '')));
+      var z = h.archived ? null : R.snoozeOn(h, ui.today);
+      text.appendChild(el('span', 'sub', R.actionWords(h) + ' · ' + R.scheduleWords(h) + (h.archived ? ' · archived ' + formatDisplayDate(h.archived) : '') + (z ? ' · ' + snoozeWords(z).toLowerCase() : '')));
       row.appendChild(text);
       row.appendChild(el('span', 'streak', streakWords(h, R.currentStreak(h, ui.today))));
       return row;
@@ -505,6 +506,8 @@ if (typeof document !== 'undefined') {
       var top = el('div', 'section');
       top.appendChild(el('p', 'statement', R.statement(h)));
       top.appendChild(el('p', 'words', R.scheduleWords(h) + (h.archived ? ' · archived ' + formatDisplayDate(h.archived) : '')));
+      var z = R.snoozeOn(h, ui.today);
+      if (z && !h.archived) top.appendChild(el('p', 'words snoozed', snoozeWords(z)));
       root.appendChild(top);
 
       var figs = el('div', 'card figures');
@@ -580,6 +583,16 @@ if (typeof document !== 'undefined') {
       // Actions
       var acts = el('div', 'section');
       acts.appendChild(button('btn secondary', 'Edit', function () { openEdit(h.id); }));
+      if (!h.archived) {
+        acts.appendChild(button('btn secondary', z ? 'End snooze' : 'Snooze', function () {
+          if (z) { endSnooze(h, z); return; }
+          ui.snooze = 'tomorrow';
+          $('snooze-date').value = '';
+          $('snooze-date').min = R.addDays(ui.today, 1);
+          renderSnooze();
+          openScreen('screen-snooze');
+        }));
+      }
       acts.appendChild(button('btn secondary', h.archived ? 'Unarchive' : 'Archive', function () {
         h.archived = h.archived ? null : ui.today;
         commit();
@@ -695,7 +708,7 @@ if (typeof document !== 'undefined') {
       if (h) {
         h.direction = v.direction; h.action = v.action; h.cue = v.cue; h.identity = v.identity; h.schedule = v.schedule; h.goal = v.goal;
       } else {
-        h = { id: newId(), action: v.action, cue: v.cue, identity: v.identity, direction: v.direction, created: ui.today, archived: null, schedule: v.schedule, goal: v.goal, log: {} };
+        h = { id: newId(), action: v.action, cue: v.cue, identity: v.identity, direction: v.direction, created: ui.today, archived: null, snoozes: [], schedule: v.schedule, goal: v.goal, log: {} };
         doc.habits.push(h);
       }
       var wasNew = !ui.editId;
@@ -705,6 +718,44 @@ if (typeof document !== 'undefined') {
       if (wasNew) setTab(0);
     });
     $('add-habit').addEventListener('click', function () { openEdit(null); });
+
+    // ---- snooze ----
+
+    /** 'Snoozed until 25-Oct-26' or 'Snoozed until turned off': the day the habit is back. */
+    function snoozeWords(z) {
+      return 'Snoozed until ' + (z.to == null ? 'turned off' : formatDisplayDate(R.addDays(z.to, 1)));
+    }
+    function renderSnooze() {
+      document.querySelectorAll('#snooze-options .option').forEach(function (b) {
+        b.setAttribute('aria-checked', b.getAttribute('data-snooze') === ui.snooze ? 'true' : 'false');
+      });
+      $('snooze-date-card').classList.toggle('hidden', ui.snooze !== 'date');
+      var range = R.snoozeRange(ui.snooze, ui.today, $('snooze-date').value);
+      $('snooze-confirm').disabled = !range;
+      $('snooze-words').textContent = range ? snoozeWords(range) : (ui.snooze === 'date' ? 'Pick a day, tomorrow or later.' : '');
+    }
+    /** Closes a snooze at yesterday, or removes it when it began today. */
+    function endSnooze(h, z) {
+      if (z.from >= ui.today) h.snoozes = h.snoozes.filter(function (x) { return x !== z; });
+      else z.to = R.addDays(ui.today, -1);
+      commit();
+      toast('Back on the schedule');
+    }
+    document.querySelectorAll('#snooze-options .option').forEach(function (b) {
+      b.addEventListener('click', function () { ui.snooze = b.getAttribute('data-snooze'); renderSnooze(); });
+    });
+    $('snooze-date').addEventListener('input', renderSnooze);
+    $('snooze-date').addEventListener('change', renderSnooze);
+    $('snooze-confirm').addEventListener('click', function () {
+      var h = habitById(ui.habitId);
+      var range = R.snoozeRange(ui.snooze, ui.today, $('snooze-date').value);
+      if (!h || !range) return;
+      if (!h.snoozes) h.snoozes = [];
+      h.snoozes.push(range);
+      closeScreen('screen-snooze');
+      commit();
+      toast(snoozeWords(range));
+    });
 
     // ---- settings ----
 

@@ -201,6 +201,17 @@ select {
   color: var(--text); font-size: 17px; cursor: pointer;
 }
 
+/* One-choice list, after the day picker: the picked row is pear, with a ring that fills. */
+.option {
+  display: flex; align-items: center; justify-content: space-between; width: 100%;
+  background: transparent; border: none; border-bottom: 1px solid var(--border); padding: 14px 0;
+  font-size: 17px; color: var(--text); cursor: pointer; text-align: left;
+}
+.option:last-child { border-bottom: none; }
+.option::after { content: ''; width: 22px; height: 22px; border-radius: 11px; border: 2px solid var(--border); flex: none; }
+.option[aria-checked="true"]::after { background: var(--pear); border-color: var(--pear); box-shadow: inset 0 0 0 4px var(--elev); }
+input[type="date"] { background: var(--fill); border: none; border-radius: 8px; padding: 6px 12px; color: var(--text); font-size: 17px; font-family: inherit; }
+
 /* Segmented control: the active segment is pear. */
 .seg { background: var(--fill); border-radius: 9px; padding: 2px; display: flex; gap: 2px; margin-bottom: 16px; }
 .seg button {

@@ -152,6 +152,39 @@
     </div>
   </section>
 
+  <!-- Snooze, presented as a sheet -->
+  <section id="screen-snooze" class="sheet" aria-label="Snooze" aria-hidden="true">
+    <header class="header header-center">
+      <button type="button" class="text-btn" data-close="screen-snooze">Cancel</button>
+      <h1 class="title small">Snooze</h1>
+      <span class="header-spacer" aria-hidden="true"></span>
+    </header>
+    <div class="scroll">
+      <div class="section">
+        <p class="hint" id="snooze-hint">Take a break from this habit. Snoozed days ask nothing and count for nothing; the streak picks up where it left off.</p>
+      </div>
+      <div class="section">
+        <div class="card list" id="snooze-options" role="radiogroup" aria-label="How long">
+          <button type="button" class="option" data-snooze="tomorrow" role="radio" aria-checked="true">Until tomorrow</button>
+          <button type="button" class="option" data-snooze="week" role="radio" aria-checked="false">For a week</button>
+          <button type="button" class="option" data-snooze="month" role="radio" aria-checked="false">For a month</button>
+          <button type="button" class="option" data-snooze="date" role="radio" aria-checked="false">Until a date</button>
+          <button type="button" class="option" data-snooze="off" role="radio" aria-checked="false">Until turned off</button>
+        </div>
+        <div class="card hidden" id="snooze-date-card">
+          <div class="setting-row last">
+            <label for="snooze-date">Back on</label>
+            <input type="date" id="snooze-date">
+          </div>
+        </div>
+      </div>
+      <div class="section">
+        <button type="button" id="snooze-confirm" class="btn primary">Confirm</button>
+        <p class="hint" id="snooze-words"></p>
+      </div>
+    </div>
+  </section>
+
   <!-- Settings, presented as a sheet -->
   <section id="screen-settings" class="sheet" aria-label="Settings" aria-hidden="true">
     <header class="header header-center">

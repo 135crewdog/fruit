@@ -4,7 +4,7 @@
  * app dependency): `node tests/browser/smoke.js [screenshot-dir]`.
  * Serves app/ and drives it at an iPhone viewport: the empty state, a once-a-day habit, a
  * counted habit, a stop habit, the Habits page, the habit screen with its calendar and
- * backfill, Edit, Archive, Delete, Settings, persistence across a reload, the service
+ * backfill, Snooze, Edit, Archive, Delete, Settings, persistence across a reload, the service
  * worker, and Clear local data. Pass a directory to save a screenshot of each screen there.
  */
 const http = require('node:http');
@@ -187,6 +187,30 @@ async function main() {
     await page.waitForSelector('#habit-detail .cal .day.today.done');
     assert.equal(await text('#habit-detail .figure:first-child .num'), '1');
     await shot('09-habit-done');
+
+    // Snooze until tomorrow: the habit leaves today's card, the detail says so, End snooze brings it back
+    await page.locator('#habit-detail .btn', { hasText: 'Snooze' }).click();
+    await page.waitForSelector('#screen-snooze.open');
+    assert.equal(await page.getAttribute('#snooze-options .option[data-snooze="tomorrow"]', 'aria-checked'), 'true');
+    await page.click('#snooze-options .option[data-snooze="date"]');
+    assert.equal(await page.isDisabled('#snooze-confirm'), true, 'Until a date waits for a date');
+    await page.click('#snooze-options .option[data-snooze="tomorrow"]');
+    assert.equal(await text('#snooze-words'), 'Snoozed until ' + app.formatDisplayDate(rules.addDays(TODAY, 1)));
+    await shot('09b-snooze');
+    await page.click('#snooze-confirm');
+    await page.waitForSelector('#screen-snooze:not(.open)');
+    assert.equal(await text('#habit-detail .words.snoozed'), 'Snoozed until ' + app.formatDisplayDate(rules.addDays(TODAY, 1)));
+    await page.click('[data-close="screen-habit"]');
+    await page.waitForSelector('#screen-habit:not(.open)');
+    await page.click('.tab[data-tab="0"]');
+    assert.equal(await page.locator('#today .card.list').first().locator('.row', { hasText: 'floss' }).count(), 0, 'a snoozed habit asks nothing today');
+    assert.match(await text('#today .group-head'), /Not scheduled today/);
+    await page.click('.tab[data-tab="1"]');
+    assert.match(await text('#habits'), /snoozed until/);
+    await page.locator('#habits .row .text', { hasText: 'floss' }).click();
+    await page.waitForSelector('#screen-habit.open');
+    await page.locator('#habit-detail .btn', { hasText: 'End snooze' }).click();
+    await page.waitForFunction(() => !document.querySelector('#habit-detail .words.snoozed'));
 
     // Edit: add a cue
     await page.locator('#habit-detail .btn', { hasText: 'Edit' }).click();

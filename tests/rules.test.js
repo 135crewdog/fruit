@@ -39,7 +39,14 @@ const ROWS = [
   '| 26 | 5 per week, created 2026-09-27 | Sep 28, 29, 30, Oct 1, 2, 5, 6, 7, 8, 9, 12 | 0 | 2 | 2/2 | 11 |',
   '| 27 | 3 per week, created 2026-09-20 | Sep 21, 23, 25, 28, 30, Oct 5, 7, 12, 14 | 0 | 1 | 1/3 | 9 |',
   '| 28 | stop, every day, limit 0, created 2026-10-01 | marked Oct 1–13; nothing logged Oct 14–16 | 0 | 13 | 13/16 | 13 |',
-  '| 29 | stop, every day, limit 0, created 2026-10-01 | marked Oct 1–14, 16; nothing logged Oct 15 | 15 | 15 | 15/16 | 15 |'
+  '| 29 | stop, every day, limit 0, created 2026-10-01 | marked Oct 1–14, 16; nothing logged Oct 15 | 15 | 15 | 15/16 | 15 |',
+  '| 30 | weekdays, created 2026-10-01, snoozed Oct 12–13 | Oct 1, 2, 5, 6, 7, 8, 9, 14, 15, 16 | 10 | 10 | 10/10 | 10 |',
+  '| 31 | weekdays, created 2026-10-01, snoozed Oct 12–16 | Oct 1, 2, 5, 6, 7, 8, 9, 14 | 7 | 7 | 7/7 | 8 |',
+  '| 32 | stop, every day, limit 0, created 2026-10-01, snoozed Oct 10–11 | marked Oct 1–9, 12–16 | 14 | 14 | 14/14 | 14 |',
+  '| 33 | 3 per week, created 2026-09-27, snoozed Oct 4–10 | Sep 28, 30, Oct 2, 12, 14, 16 | 2 | 2 | 1/1 | 6 |',
+  '| 34 | 3 per week, created 2026-09-27, snoozed Oct 8–10 | Sep 28, 30, Oct 2, 5, 12, 14, 16 | 1 | 1 | 1/2 | 7 |',
+  '| 35 | 5 per week, created 2026-09-27, snoozed Oct 8–10 | Sep 28, 29, 30, Oct 1, 2, 5, 6, 12, 13, 14, 15, 16 | 2 | 2 | 1/1 | 12 |',
+  '| 36 | weekdays, created 2026-10-01, snoozed from Oct 12 | Oct 1, 2, 5, 6, 7, 8, 9 | 7 | 7 | 7/7 | 7 |'
 ];
 
 const DEFAULT_TODAY = '2026-10-17'; // a Saturday
@@ -51,7 +58,7 @@ function parseRow(row) {
   const [n, desc, log, streak, best, completionText, totalText] = cells;
   const habit = {
     id: 'row' + n, action: 'test', cue: '', identity: 'tested', direction: 'start',
-    created: null, archived: null, schedule: null, goal: { amount: 1, unit: 'times' }, log: {}
+    created: null, archived: null, snoozes: [], schedule: null, goal: { amount: 1, unit: 'times' }, log: {}
   };
   let today = DEFAULT_TODAY, m;
   for (const token of desc.split(', ')) {
@@ -65,6 +72,10 @@ function parseRow(row) {
     else if ((m = /^created (\S+)/.exec(token))) habit.created = m[1];
     else if ((m = /^archived (\S+)/.exec(token))) habit.archived = m[1];
     else if ((m = /^today (\S+)/.exec(token))) today = m[1];
+    else if ((m = /^snoozed (from )?([A-Z][a-z]{2}) (\d+)(?:–(\d+))?$/.exec(token))) {
+      const day = (d) => '2026-' + String(MONTHS[m[2]]).padStart(2, '0') + '-' + String(d).padStart(2, '0');
+      habit.snoozes.push({ from: day(+m[3]), to: m[1] ? null : day(+(m[4] || m[3])) });
+    }
     else if (/not yet logged$/.test(token)) { /* says only that today is open */ }
     else throw new Error('row ' + n + ': cannot read "' + token + '"');
   }
@@ -223,6 +234,26 @@ test('scheduleWords follows the "Schedule in words" table', () => {
   assert.equal(w({ kind: 'days', days: [1, 2, 3, 4, 5] }, { amount: 0, unit: 'times' }, 'stop'), 'Weekdays');
   assert.equal(w({ kind: 'days', days: [1, 2, 3, 4, 5] }, { amount: 2, unit: 'drinks' }, 'stop'), 'Up to 2 drinks a day, weekdays');
   assert.equal(w({ kind: 'weekly', times: 5 }, { amount: 0, unit: 'times' }, 'stop'), '5 days a week');
+});
+
+test('snoozeRange turns the sheet\'s choice into a range starting today', () => {
+  const t = '2026-10-17'; // a Saturday
+  assert.deepEqual(rules.snoozeRange('tomorrow', t), { from: t, to: '2026-10-17' });
+  assert.deepEqual(rules.snoozeRange('week', t), { from: t, to: '2026-10-23' }); // back on Saturday the 24th
+  assert.deepEqual(rules.snoozeRange('month', t), { from: t, to: '2026-11-16' }); // back on the 17th
+  assert.deepEqual(rules.snoozeRange('month', '2026-01-31'), { from: '2026-01-31', to: '2026-02-27' }); // back on the last day of February
+  assert.deepEqual(rules.snoozeRange('month', '2026-12-05'), { from: '2026-12-05', to: '2027-01-04' });
+  assert.deepEqual(rules.snoozeRange('date', t, '2026-10-25'), { from: t, to: '2026-10-24' });
+  assert.equal(rules.snoozeRange('date', t, '2026-10-17'), null);
+  assert.equal(rules.snoozeRange('date', t, ''), null);
+  assert.deepEqual(rules.snoozeRange('off', t), { from: t, to: null });
+  assert.equal(rules.snoozeRange('never', t), null);
+  // The range it makes is what the rules read: a snoozed day is not scheduled.
+  const h = { created: '2026-10-01', archived: null, direction: 'start', schedule: { kind: 'days', days: [0, 1, 2, 3, 4, 5, 6] }, goal: { amount: 1, unit: 'times' }, log: {}, snoozes: [rules.snoozeRange('week', t)] };
+  assert.equal(rules.isScheduled(h, '2026-10-23'), false);
+  assert.equal(rules.isScheduled(h, '2026-10-24'), true);
+  assert.equal(rules.snoozeOn(h, '2026-10-20').to, '2026-10-23');
+  assert.equal(rules.snoozeOn(h, '2026-10-16'), null);
 });
 
 test('identityWords and actionWords split the statement for a list row', () => {
