@@ -72,13 +72,20 @@ async function main() {
     await page.waitForSelector('#today .row .lead');
     assert.equal(await text('#today .row .lead'), 'Become someone who keeps their teeth');
     assert.equal(await text('#today .row .sub'), 'floss');
-    assert.equal(await page.getAttribute('#today .row .check', 'aria-pressed'), 'false');
+    assert.equal(await page.locator('#today .row .check.on, #today .row .check.slip').count(), 0, 'the pill starts as a ring');
+    // The once-a-day pill cycles: ring → check (done) → cross (not today) → ring
     await page.click('#today .row .check');
     await page.waitForSelector('#today .row.done');
-    assert.equal(await text('#today .row.done .meta'), '1 day');
+    assert.equal(await text('#today .row.done .sub'), 'floss · 1-day streak');
+    assert.equal(await page.locator('#today .row .check.on').count(), 1);
     await shot('03-today-done');
     await page.click('#today .row .check');
-    await page.waitForSelector('#today .row:not(.done)');
+    await page.waitForSelector('#today .row.over');
+    assert.equal(await page.locator('#today .row .check.slip').count(), 1, 'a second tap marks not today');
+    assert.deepEqual(await page.evaluate(() => Object.values(JSON.parse(localStorage.getItem('fruit.data')).habits[0].log)), [0], 'not today is a kept 0');
+    await page.click('#today .row .check');
+    await page.waitForSelector('#today .row:not(.done):not(.over)');
+    assert.equal(await page.locator('#today .row .check.on, #today .row .check.slip').count(), 0, 'a third tap clears');
 
     // A counted habit, partial after three taps
     await page.click('[data-tab="1"]');
@@ -123,7 +130,7 @@ async function main() {
     await page.waitForSelector('#today .row.done', { state: 'attached' });
     assert.equal(await run.evaluate((n) => n.classList.contains('done')), true, 'reaching the goal marks the row done');
 
-    // A stop habit: clean until a slip
+    // A stop habit with a limit of 0: the same one-tap pill as once a day
     await page.click('#settings-btn');
     await page.waitForSelector('#screen-settings.open');
     await shot('04-settings');
@@ -144,21 +151,20 @@ async function main() {
     const snack = page.locator('#today .row', { hasText: 'snack after dinner' });
     await snack.waitFor();
     assert.equal(await snack.evaluate((n) => n.classList.contains('clean')), false, 'a stop row is plain until the day is marked');
-    assert.equal(await snack.locator('.stepper .mark .ring').count(), 1, 'the middle is an empty ring before the day is logged');
-    assert.equal(await snack.locator('.stepper button[aria-label="Take back the mark"]').isDisabled(), true);
-    await snack.locator('.stepper button[aria-label="Mark the day: nothing to report"]').click();
+    // A limit of 0 is the same pill as once a day: ring → check (nothing to report) → cross (slipped) → ring
+    assert.equal(await snack.locator('.check').count(), 1, 'a limit of 0 gets the one-tap pill');
+    assert.equal(await snack.locator('.check.on, .check.slip').count(), 0);
+    await snack.locator('.check').click();
     await page.waitForSelector('#today .row.clean');
-    assert.equal((await snack.locator('.stepper .n').textContent()).trim(), '✓');
-    assert.match((await snack.locator('.meta').textContent()).trim(), /^1 day\b/, 'marking today clean settles it, so it counts at once');
-    await snack.locator('.stepper button[aria-label="Slipped"]').click();
+    assert.equal(await snack.locator('.check.on').count(), 1);
+    assert.match((await snack.locator('.sub').textContent()).trim(), /1-day streak$/, 'marking today settles it, so it counts at once');
+    await snack.locator('.check').click();
     await page.waitForSelector('#today .row.over');
-    assert.equal((await snack.locator('.stepper .n').textContent()).trim(), '1');
+    assert.equal(await snack.locator('.check.slip').count(), 1, 'a second tap is a slip');
     await shot('06-today-three');
-    await snack.locator('.stepper button[aria-label="Undo a slip"]').click();
-    await page.waitForSelector('#today .row.clean');
-    await snack.locator('.stepper button.mark.on').click(); // a tap on the check takes the mark back
-    await page.waitForSelector('#today .row.clean', { state: 'detached' });
-    assert.equal(await snack.locator('.stepper .mark .ring').count(), 1);
+    await snack.locator('.check').click();
+    await page.waitForSelector('#today .row.over', { state: 'detached' });
+    assert.equal(await snack.locator('.check.on, .check.slip').count(), 0);
     const snackLog = await page.evaluate(() => JSON.parse(localStorage.getItem('fruit.data')).habits.find((h) => h.action === 'snack after dinner').log);
     assert.deepEqual(snackLog, {}, 'taking the mark back removes the entry');
     // On its calendar, a day the stop habit is not scheduled for cannot be tapped

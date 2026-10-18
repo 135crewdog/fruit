@@ -83,6 +83,9 @@ function lastDay(habit, today) {
 
 function isStop(habit) { return habit.direction === 'stop'; }
 
+/** A start habit logged with one tap a day: its 0 is the mark for "not today". A count or an amount has no mark. */
+function isOnceADay(habit) { return !isStop(habit) && habit.goal.amount === 1 && habit.goal.unit === 'times'; }
+
 /** The snooze covering iso, or null. A snooze is { from, to }, inclusive; to is null for "until turned off". */
 function snoozeOn(habit, iso) {
   var list = habit.snoozes || [];
@@ -127,7 +130,9 @@ function dayState(habit, iso, today) {
     return iso === today ? 'unsettled' : 'missed';
   }
   if (a >= habit.goal.amount) return 'done';
-  if (iso === today) return 'unsettled';
+  // A once-a-day habit's 0 on today is the mark for "not today": the day settles as missed now rather
+  // than at midnight. A count or an amount edited down from once a day has no mark, so a kept 0 is nothing.
+  if (iso === today) return a === 0 && logged(habit, iso) && isOnceADay(habit) ? 'missed' : 'unsettled';
   return a > 0 ? 'partial' : 'missed';
 }
 
@@ -384,6 +389,7 @@ if (typeof module !== 'undefined' && module.exports) {
     weekStart: weekStart,
     firstWeekStart: firstWeekStart,
     isScheduled: isScheduled,
+    isOnceADay: isOnceADay,
     snoozeOn: snoozeOn,
     isSnoozed: isSnoozed,
     snoozeRange: snoozeRange,

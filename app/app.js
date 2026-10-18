@@ -9,7 +9,7 @@
  */
 'use strict';
 
-var APP_VERSION = '2026.10.18.1';
+var APP_VERSION = '2026.10.18.2';
 var STORAGE = { settings: 'fruit.settings', data: 'fruit.data', backup: 'fruit.backup' };
 var MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 var LONG_DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
@@ -45,10 +45,30 @@ function monthWords(ym) {
   return MONTHS[Number(ym.slice(5, 7)) - 1] + ' ' + ym.slice(0, 4);
 }
 
-/** '10 days', '1 day', '3 weeks' for a weekly habit. */
+/** 'day', 'days', 'week', 'weeks': the unit a habit's streak is counted in. */
+function streakUnit(habit, n) {
+  return (habit.schedule.kind === 'weekly' ? 'week' : 'day') + (n === 1 ? '' : 's');
+}
+
+/** '12-day streak', '1-day streak', '3-week streak', or 'No streak' at zero. */
 function streakWords(habit, n) {
-  var unit = habit.schedule.kind === 'weekly' ? 'week' : 'day';
-  return n + ' ' + unit + (n === 1 ? '' : 's');
+  if (!n) return 'No streak';
+  return n + '-' + (habit.schedule.kind === 'weekly' ? 'week' : 'day') + ' streak';
+}
+
+/**
+ * The next amount when a once-a-day pill is tapped. It cycles ring, check, cross, ring: for a start
+ * habit nothing, done (1), not today (0, kept as the mark, on today only), nothing; for a stop habit
+ * with a limit of 0 nothing, marked (0), slipped (1), nothing. NaN means remove the entry.
+ */
+function cycleAmount(habit, amount, isLogged, isToday) {
+  if (habit.direction === 'stop') {
+    if (!isLogged) return 0;
+    return amount === 0 ? 1 : NaN;
+  }
+  if (amount > 0) return isToday ? 0 : NaN;
+  // A past 0 and a past blank are the same missed day, so either goes straight to done.
+  return isLogged && isToday ? NaN : 1;
 }
 
 /** '74%' from a completion object, '' when there is nothing to count. */
@@ -56,9 +76,13 @@ function percentWords(c) {
   return c ? Math.round((c.done / c.scheduled) * 100) + '%' : '';
 }
 
-/** How a start habit is logged: 'check' once a day, 'count' for N times, 'amount' for a measured unit. A stop habit is always 'slips'. */
+/**
+ * The control on a row: 'check' for a once-a-day start habit and a stop habit with a limit of 0 (one pill
+ * that cycles ring, check, cross), 'count' for N times, 'amount' for a measured unit, 'slips' for a stop
+ * habit with a limit above 0.
+ */
 function controlKind(habit) {
-  if (habit.direction === 'stop') return 'slips';
+  if (habit.direction === 'stop') return habit.goal.amount > 0 ? 'slips' : 'check';
   if (habit.goal.unit !== 'times') return 'amount';
   return habit.goal.amount === 1 ? 'check' : 'count';
 }
@@ -123,7 +147,8 @@ function validateDraft(d) {
 
 /**
  * The log with one day set: a new object. The day is removed when the amount is not above 0,
- * except that with keepZero (a stop habit) a 0 is kept: it is the mark for a day with nothing to report.
+ * except that with keepZero a 0 is kept: it is a mark, a stop habit's "nothing to report" or a once-a-day
+ * start habit's "not today".
  */
 function withAmount(log, date, amount, keepZero) {
   var next = {};
@@ -190,7 +215,7 @@ if (typeof document !== 'undefined') {
     if (!doc || doc.v !== 1 || !Array.isArray(doc.habits)) doc = emptyDocument();
     var ui = {
       today: R.localToday(), tab: 0, habitId: null, editId: null, draft: null,
-      calMonth: null, selected: null, showUnscheduled: false, showArchived: false, snooze: 'tomorrow'
+      calMonth: null, selected: null, showUnscheduled: false, showArchived: false, snooze: 'tomorrow', pop: null
     };
     var toastTimer = null;
 
@@ -208,7 +233,8 @@ if (typeof document !== 'undefined') {
       if (!quiet) render();
     }
     function setAmount(habit, date, amount, quiet) {
-      habit.log = withAmount(habit.log, date, amount, habit.direction === 'stop');
+      habit.log = withAmount(habit.log, date, amount, habit.direction === 'stop' || controlKind(habit) === 'check');
+      ui.pop = habit.id; // the control that changed pops once when it is redrawn
       commit(quiet);
     }
     function amountOn(habit, date) { var a = habit.log[date]; return typeof a === 'number' ? a : 0; }
@@ -313,28 +339,37 @@ if (typeof document !== 'undefined') {
       $('title').textContent = ui.tab === 0 ? 'Today' : 'Habits';
     }
 
-    /** One row: the identity, what the day asks beneath it, a status line, and the control for the goal. */
+    /** One row: the identity, one gray line (what the day asks, the streak, the hint), and the pill for the goal. */
     function habitRow(h, date, opts) {
       var kind = controlKind(h), st = R.dayState(h, date, ui.today), stop = h.direction === 'stop';
+      var a = amountOn(h, date), marked = R.logged(h, date);
       var row = el('div', 'row');
       if (stop) { if (st === 'missed') row.classList.add('over'); else if (st === 'done') row.classList.add('clean'); }
       else if (st === 'done') row.classList.add('done');
+      else if (st === 'missed' && marked && a === 0 && kind === 'check') row.classList.add('over'); // marked not today
 
       var text = button('text', null, function () { openHabit(h.id); });
       text.appendChild(el('span', 'lead', R.identityWords(h)));
-      text.appendChild(el('span', 'sub', R.actionWords(h)));
-      var meta = [];
+      var meta = [R.actionWords(h)];
+      if (opts && opts.words) meta.push(R.scheduleWords(h));
       if (st === 'done') meta.push(streakWords(h, R.currentStreak(h, ui.today)));
       if (R.forgiven(h, ui.today)) meta.push(stop ? "Don't slip twice" : "Don't miss twice");
-      if (opts && opts.words) meta.unshift(R.scheduleWords(h));
-      if (meta.length) text.appendChild(el('span', 'meta', meta.join(' · ')));
+      text.appendChild(el('span', 'sub', meta.join(' · ')));
       row.appendChild(text);
 
-      var a = amountOn(h, date);
+      var control;
       if (kind === 'check') {
-        var c = button('check', '✓', function () { setAmount(h, date, a > 0 ? 0 : 1); }, a > 0 ? 'Undo' : 'Done');
-        c.setAttribute('aria-pressed', a > 0 ? 'true' : 'false');
-        row.appendChild(c);
+        // One pill that cycles: a ring (unanswered), a check (done; nothing to report), a cross (not today;
+        // slipped), then the ring again. No word names the state.
+        var on = stop ? marked && a === 0 : a > 0;
+        var slip = stop ? a > 0 : marked && a === 0;
+        var label = stop
+          ? (!marked ? 'Not yet marked. Tap to mark nothing to report' : a === 0 ? 'Nothing to report. Tap to mark a slip' : 'Slipped. Tap to clear')
+          : (!marked ? 'Not yet done. Tap to mark done' : a > 0 ? 'Done. Tap to mark not today' : 'Not today. Tap to clear');
+        control = button('check' + (on ? ' on' : '') + (slip ? ' slip' : ''), null, function () {
+          setAmount(h, date, cycleAmount(h, a, marked, date === ui.today));
+        }, label);
+        row.appendChild(control);
       } else if (kind === 'count') {
         var limit = h.goal.amount;
         var stepper = el('div', 'stepper');
@@ -345,12 +380,12 @@ if (typeof document !== 'undefined') {
         stepper.appendChild(minus);
         stepper.appendChild(el('span', 'n', a + ' of ' + limit));
         stepper.appendChild(plus);
+        control = stepper;
         row.appendChild(stepper);
       } else if (kind === 'slips') {
-        // No word names the state. Unlogged: the middle is an empty ring; a tap marks the day with nothing
-        // to report, and the middle becomes a check (limit 0) or "0 of 2". + logs a slip, − takes one back,
-        // and − at zero, or a tap on the check, takes the mark back.
-        var lim = h.goal.amount, marked = R.logged(h, date);
+        // A limit above 0. Unlogged: the middle is an empty ring; a tap marks the day with nothing to report
+        // and the middle becomes "0 of 2". + logs a slip, − takes one back, and − at zero takes the mark back.
+        var lim = h.goal.amount;
         var box = el('div', 'stepper');
         var back = button(null, '−', function () { setAmount(h, date, a > 0 ? a - 1 : NaN); }, a > 0 ? 'Undo a slip' : 'Take back the mark');
         back.disabled = !marked;
@@ -359,12 +394,11 @@ if (typeof document !== 'undefined') {
           var ring = button('n mark', null, function () { setAmount(h, date, 0); }, 'Mark the day: nothing to report');
           ring.appendChild(el('i', 'ring'));
           box.appendChild(ring);
-        } else if (a === 0 && lim === 0) {
-          box.appendChild(button('n mark on', '✓', function () { setAmount(h, date, NaN); }, 'Take back the mark'));
         } else {
-          box.appendChild(el('span', 'n', lim > 0 ? a + ' of ' + lim : String(a)));
+          box.appendChild(el('span', 'n', a + ' of ' + lim));
         }
         box.appendChild(button(null, '+', function () { setAmount(h, date, a + 1); }, 'Slipped'));
+        control = box;
         row.appendChild(box);
       } else {
         var wrap = el('div', 'amount');
@@ -379,8 +413,10 @@ if (typeof document !== 'undefined') {
         input.addEventListener('change', function () { setAmount(h, date, input.valueAsNumber); });
         wrap.appendChild(input);
         wrap.appendChild(el('span', null, h.goal.unit));
+        control = wrap;
         row.appendChild(wrap);
       }
+      if (ui.pop === h.id && date === ui.today) { control.classList.add('pop'); ui.pop = null; }
       return row;
     }
 
@@ -511,8 +547,8 @@ if (typeof document !== 'undefined') {
       root.appendChild(top);
 
       var figs = el('div', 'card figures');
-      figs.appendChild(figure(String(f.streak), 'Current streak', streakWords(h, f.streak).replace(/^\d+ /, '')));
-      figs.appendChild(figure(String(f.best), 'Best streak', streakWords(h, f.best).replace(/^\d+ /, '')));
+      figs.appendChild(figure(String(f.streak), 'Current streak', streakUnit(h, f.streak)));
+      figs.appendChild(figure(String(f.best), 'Best streak', streakUnit(h, f.best)));
       figs.appendChild(figure(percentWords(f.completion) || '—', 'Completion', f.completion ? f.completion.done + ' of ' + f.completion.scheduled : 'nothing to count yet'));
       figs.appendChild(figure(String(f.total), 'Total', h.direction === 'stop' ? (h.goal.amount > 0 ? 'days within the limit' : 'days without a slip') : 'days done'));
       var fsec = el('div', 'section');
@@ -612,7 +648,7 @@ if (typeof document !== 'undefined') {
       if (h.archived) return;
       var kind = controlKind(h);
       var a = amountOn(h, date);
-      if (kind === 'check') { setAmount(h, date, a > 0 ? 0 : 1); return; }
+      if (kind === 'check') { setAmount(h, date, cycleAmount(h, a, R.logged(h, date), date === ui.today)); return; }
       ui.selected = date;
       renderDetail();
     }
@@ -801,6 +837,8 @@ if (typeof module !== 'undefined' && module.exports) {
     longDate: longDate,
     monthWords: monthWords,
     streakWords: streakWords,
+    streakUnit: streakUnit,
+    cycleAmount: cycleAmount,
     percentWords: percentWords,
     controlKind: controlKind,
     emptyDocument: emptyDocument,
