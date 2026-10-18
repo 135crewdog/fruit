@@ -178,7 +178,7 @@ Where Show Time uses iOS blue and Apollo its due-date colors, Low-Hanging Fruit 
 |---|---|---|---|---|
 | Pear (default) | `#b9e24a` bright green | `#ffd53e` yellow | `#dda25e` warm brown | dark |
 | Peach | `#ffb37a` peach | `#ffe29a` cream | `#e06c7a` the red skin | dark |
-| Blackberry | `#6a2c91` blackberry | `#b05ca8` plum | `#a63d40` wine | white |
+| Blackberry | `#6a2c91` blackberry | `#a04f98` plum | `#a63d40` wine | white |
 
 A palette is these four values, the same in light and dark; the grays around them follow the theme. Pear was chosen on 2026-10-18 from rendered options ("Sunlit"), vivid enough to make you want to eat a pear; Peach and Blackberry the same day, from options drawn on the finished pills. The palette is picked in Settings → Appearance, stored in `fruit.settings`, and set on the root as `data-palette`. The **icon** is the name in title case, extra-bold, with the peach emoji as the hyphen (`Low 🍑 / Hanging / Fruit`), on a mango gradient from green through orange to red, after Apollo's gradient icon. It is baked to PNG by `tools/icon.js` so every device shows the same picture; there is no SVG icon. Everything the app says is sentence case; section titles are uppercase as a visual device; proper nouns keep their capitals. Every date a human reads is `DD-Mmm-YY` (`17-Oct-26`); the Today date adds the weekday (`Saturday 17-Oct-26`).
 

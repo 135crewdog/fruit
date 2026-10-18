@@ -18,7 +18,7 @@
 }
 /* The other palettes, chosen in Settings → Appearance. A palette is these four values, the same in light and dark. */
 :root[data-palette="peach"] { --leaf: #ffb37a; --pear: #ffe29a; --spot: #e06c7a; --on-accent: #1c1c1e; }
-:root[data-palette="blackberry"] { --leaf: #6a2c91; --pear: #b05ca8; --spot: #a63d40; --on-accent: #ffffff; }
+:root[data-palette="blackberry"] { --leaf: #6a2c91; --pear: #a04f98; --spot: #a63d40; --on-accent: #ffffff; }
 :root[data-theme="dark"],
 :root:not([data-theme="light"]):not([data-theme="dark"]).system-dark {
   --bg: #000000;
