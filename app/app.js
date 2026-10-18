@@ -9,7 +9,7 @@
  */
 'use strict';
 
-var APP_VERSION = '2026.10.18.4';
+var APP_VERSION = '2026.10.18.5';
 var STORAGE = { settings: 'fruit.settings', data: 'fruit.data', backup: 'fruit.backup' };
 var MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 var LONG_DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
@@ -235,9 +235,19 @@ if (typeof document !== 'undefined') {
       if (!quiet) render();
     }
     function setAmount(habit, date, amount, quiet) {
+      ui.popFrom = fillState(habit, date); // where the row's fill was, so it can animate from there
       habit.log = withAmount(habit.log, date, amount, habit.direction === 'stop' || controlKind(habit) === 'check');
       ui.pop = habit.id; // the control that changed pops once when it is redrawn
       commit(quiet);
+    }
+    /** How much of a row is filled and in which color: { p, bg } with bg 'leaf', 'spot', 'pear' or ''. */
+    function fillState(h, date) {
+      var st = R.dayState(h, date, ui.today), a = amountOn(h, date);
+      if (h.direction === 'stop') return st === 'done' ? { p: 1, bg: 'leaf' } : st === 'missed' && a > h.goal.amount ? { p: 1, bg: 'spot' } : { p: 0, bg: '' };
+      if (st === 'done') return { p: 1, bg: 'leaf' };
+      if (st === 'missed' && a === 0 && R.logged(h, date) && controlKind(h) === 'check') return { p: 1, bg: 'spot' };
+      if (a > 0 && h.goal.amount > 0) return { p: Math.min(1, a / h.goal.amount), bg: 'pear' };
+      return { p: 0, bg: '' };
     }
     function amountOn(habit, date) { var a = habit.log[date]; return typeof a === 'number' ? a : 0; }
 
@@ -351,6 +361,15 @@ if (typeof document !== 'undefined') {
       if (stop) { if (st === 'missed') row.classList.add('over'); else if (st === 'done') row.classList.add('clean'); }
       else if (st === 'done') row.classList.add('done');
       else if (st === 'missed' && marked && a === 0 && kind === 'check') row.classList.add('over'); // marked not today
+      var fs = fillState(h, date);
+      if (fs.bg === 'pear') { row.classList.add('part'); row.style.setProperty('--p', String(fs.p)); }
+      if (ui.pop === h.id && date === ui.today && fs.bg) {
+        // Animate from the previous fill to this one; from nothing, the new color simply sweeps in.
+        var from = ui.popFrom || { p: 0, bg: '' };
+        row.classList.add('anim');
+        row.style.setProperty('--from', String(from.p));
+        row.style.setProperty('--from-bg', 'var(--' + (from.bg || fs.bg) + ')');
+      }
 
       var text = button('text', null, function () { openHabit(h.id); });
       text.appendChild(el('span', 'lead', R.identityWords(h)));
@@ -437,6 +456,10 @@ if (typeof document !== 'undefined') {
         return;
       }
       var scheduled = live.filter(function (h) { return R.isScheduled(h, ui.today); });
+      // The whole day's reward is one line: the date says so when every scheduled habit is done.
+      if (scheduled.length && scheduled.every(function (h) { return R.dayState(h, ui.today, ui.today) === 'done'; })) {
+        root.firstChild.textContent += ' · all done';
+      }
       // A bonus day is a start habit's idea; a stop habit asks nothing on an unscheduled day.
       var others = live.filter(function (h) { return !R.isScheduled(h, ui.today) && h.direction !== 'stop'; });
 
