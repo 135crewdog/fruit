@@ -253,6 +253,15 @@ async function main() {
     await page.selectOption('#theme', 'dark');
     assert.equal(await page.getAttribute('html', 'data-theme'), 'dark');
     await shot('10-dark');
+    // Palette: three values swap; the choice is a setting, never in the document
+    assert.equal(await page.getAttribute('html', 'data-palette'), 'pear');
+    await page.selectOption('#palette', 'blackberry');
+    assert.equal(await page.getAttribute('html', 'data-palette'), 'blackberry');
+    assert.equal(await page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--leaf').trim()), '#6a2c91');
+    assert.equal(await page.evaluate(() => JSON.parse(localStorage.getItem('fruit.settings')).palette), 'blackberry');
+    assert.equal(await page.evaluate(() => 'palette' in JSON.parse(localStorage.getItem('fruit.data'))), false);
+    await shot('11-blackberry');
+    await page.selectOption('#palette', 'pear');
     await page.selectOption('#theme', 'auto');
     assert.match(await text('.version'), new RegExp('v' + app.APP_VERSION.replace(/\./g, '\\.')));
     await page.click('#done');

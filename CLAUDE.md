@@ -60,7 +60,7 @@ One document in `localStorage` under `fruit.data`. The backup file and the expor
 - `log` maps a local date (`YYYY-MM-DD`) to the amount logged that day: what was done for a start habit, the slips for a stop habit. A start habit's day is **done** when its amount is at least `goal.amount`, **partial** when it is above 0 and below; a once-a-day habit's `0` is the mark for **not today**, a miss settled on purpose. A stop habit's day is **done** when it is logged with slips at most the limit (a `0` is the mark for a day with nothing to report), **missed** when over the limit or, once the day is over, when nothing was logged. A `0` is kept when it is a mark, either habit's; a count stepped back to 0 or an amount cleared is removed.
 - `id` is random and never shown. `created` is the local date the habit was made. `archived` is the local date it was archived, or `null`.
 - `snoozes` lists the breaks taken from the habit, each `{ from, to }` with inclusive local dates, `to` null for a snooze until turned off. A snooze always starts on the day it is made. The list is kept forever, because the history depends on it.
-- Settings live apart, in `fruit.settings` (`{ url, token, theme }`), so a backup or export never carries the token.
+- Settings live apart, in `fruit.settings` (`{ url, token, theme, palette }`), so a backup or export never carries the token, and the look of the app is the phone's, not the document's.
 
 ## The rules
 
@@ -165,15 +165,22 @@ Apollo's "no app shell" rule does **not** apply here, and the reason is written 
 
 The visual language is Show Time's and Apollo's iOS-style system: the system font stack, antialiased; a header with the 34px bold title on the left and a round 40px gear button on the right; content in sections with 13px uppercase letter-spaced gray titles over rounded 10px cards with a 1px border; 17px inputs on a gray fill with 10px radius; full-width 12px-radius buttons; iOS segmented controls; an iOS tab bar at the bottom; Settings with "Done" on the left and a centered title; a Light/Dark/Auto theme setting that also sets the page's theme color; Apple's gray palette for backgrounds, borders, fills and secondary text (`#f2f2f7`, `#ffffff`, `#c6c6c8`, `#8e8e93`, `#e5e5ea`; dark `#000000`, `#1c1c1e`, `#38383a`, `#98989d`, `#48484a`); iOS red for Delete.
 
-Where Show Time uses iOS blue and Apollo its due-date colors, Low-Hanging Fruit uses a **pear palette**, with dark text on all of it:
+Where Show Time uses iOS blue and Apollo its due-date colors, Low-Hanging Fruit uses a **fruit palette**: three roles and the text that sits on them. The tokens are named after the pear, the first fruit, and keep their names whatever the palette:
 
-| Token | Value | Used for |
-|---|---|---|
-| `--leaf` | `#b9e24a` bright green | a done day, a done row, the primary button |
-| `--pear` | `#ffd53e` yellow | a partial day, the active segment, the picked weekday |
-| `--spot` | `#dda25e` warm brown | a missed scheduled day, a slipped or not-today row, the "spots on a ripe pear" |
+| Token | Role |
+|---|---|
+| `--leaf` | a done day, a done row, the primary button |
+| `--pear` | a partial day, the active segment, the picked weekday |
+| `--spot` | a missed scheduled day, a slipped or not-today row, the "spots on a ripe pear" |
+| `--on-accent` | the text on any of the three |
 
-The palette was chosen on 2026-10-18 from rendered options ("Sunlit"): vivid enough to make you want to eat a pear, with the same three values in light and dark, and dark text on all of them. The **icon** is the name in title case, extra-bold, with the peach emoji as the hyphen (`Low 🍑 / Hanging / Fruit`), on a mango gradient from green through orange to red, after Apollo's gradient icon. It is baked to PNG by `tools/icon.js` so every device shows the same picture; there is no SVG icon. Everything the app says is sentence case; section titles are uppercase as a visual device; proper nouns keep their capitals. Every date a human reads is `DD-Mmm-YY` (`17-Oct-26`); the Today date adds the weekday (`Saturday 17-Oct-26`).
+| Palette | `--leaf` | `--pear` | `--spot` | `--on-accent` |
+|---|---|---|---|---|
+| Pear (default) | `#b9e24a` bright green | `#ffd53e` yellow | `#dda25e` warm brown | dark |
+| Peach | `#ffb37a` peach | `#ffe29a` cream | `#e06c7a` the red skin | dark |
+| Blackberry | `#6a2c91` blackberry | `#b05ca8` plum | `#a63d40` wine | white |
+
+A palette is these four values, the same in light and dark; the grays around them follow the theme. Pear was chosen on 2026-10-18 from rendered options ("Sunlit"), vivid enough to make you want to eat a pear; Peach and Blackberry the same day, from options drawn on the finished pills. The palette is picked in Settings → Appearance, stored in `fruit.settings`, and set on the root as `data-palette`. The **icon** is the name in title case, extra-bold, with the peach emoji as the hyphen (`Low 🍑 / Hanging / Fruit`), on a mango gradient from green through orange to red, after Apollo's gradient icon. It is baked to PNG by `tools/icon.js` so every device shows the same picture; there is no SVG icon. Everything the app says is sentence case; section titles are uppercase as a visual device; proper nouns keep their capitals. Every date a human reads is `DD-Mmm-YY` (`17-Oct-26`); the Today date adds the weekday (`Saturday 17-Oct-26`).
 
 **Every list row leads with the identity**, on Today and Habits alike: `Become a clear-headed person` in 17px, built from the identity field the way the statement is, with what the day asks beneath it in gray, the action with its cue (`wake up before 6 a.m.`; `not drink alcohol on a weeknight` for a stop habit). The identity is the point of the habit and the action is the chore, so the action never heads a row. Two habits that share an identity read as twins at a glance and the gray line tells them apart. The detail screen shows the whole sentence.
 
@@ -208,11 +215,11 @@ A segmented control first: Start a habit / Stop a habit. Then the live sentence,
 
 ### Settings (sheet)
 
-Sections: **Backup** (web app URL, token, Show token, Save, Back up now, Restore from backup, last backup and last error), **Export** (Export file, Import file), **Appearance** (Theme: Light, Dark, Auto), **Data** (Clear local data, asks first; the backup file is never touched), **Help** (Setup guide), and the versions (the app's, and the script's when the backup has answered).
+Sections: **Backup** (web app URL, token, Show token, Save, Back up now, Restore from backup, last backup and last error), **Export** (Export file, Import file), **Appearance** (Theme: Light, Dark, Auto; Palette: Pear, Peach, Blackberry), **Data** (Clear local data, asks first; the backup file is never touched), **Help** (Setup guide), and the versions (the app's, and the script's when the backup has answered).
 
 ### Storage
 
-`localStorage` keys `fruit.data` (the document), `fruit.settings` (`{ url, token, theme }`) and `fruit.backup` (`{ lastBackup, pending, lastError }`).
+`localStorage` keys `fruit.data` (the document), `fruit.settings` (`{ url, token, theme, palette }`) and `fruit.backup` (`{ lastBackup, pending, lastError }`).
 
 ### Hosting and updates
 
@@ -285,5 +292,5 @@ Discussed, not adopted, might come back. Ask before building.
 - **Earned or stored mulligans** (Duolingo's streak freeze), and a retroactive snooze. Never miss twice is the rule; an inventory of forgiveness is not, and a snooze starts today.
 - **A Monday-start week** setting.
 - **A handoff link** (`#url=…&token=…`) like Apollo's; there is no sheet menu to generate it, so the URL and token are typed once instead.
-- **Other palettes.** Peach, blackberry and so on as a Settings choice; pear is the only one in version 1. The tokens are named by role (`--leaf`, `--pear`, `--spot`) so a palette is three values.
+- **More palettes.** Mango (the icon's own colors, with green as unripe) and Apple were drawn on 2026-10-18 and not taken. A palette is four values in the stylesheet and an option in the Settings select.
 - Widgets and Apple Watch.

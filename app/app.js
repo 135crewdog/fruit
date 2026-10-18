@@ -9,7 +9,7 @@
  */
 'use strict';
 
-var APP_VERSION = '2026.10.18.2';
+var APP_VERSION = '2026.10.18.3';
 var STORAGE = { settings: 'fruit.settings', data: 'fruit.data', backup: 'fruit.backup' };
 var MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 var LONG_DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
@@ -208,8 +208,10 @@ if (typeof document !== 'undefined') {
       return b;
     }
 
-    var settings = load(STORAGE.settings, { url: '', token: '', theme: 'auto' });
+    var PALETTES = ['pear', 'peach', 'blackberry'];
+    var settings = load(STORAGE.settings, { url: '', token: '', theme: 'auto', palette: 'pear' });
     if (!settings.theme) settings.theme = 'auto';
+    if (PALETTES.indexOf(settings.palette) === -1) settings.palette = 'pear';
     var doc = load(STORAGE.data, emptyDocument());
     if (!doc || doc.v !== 1 || !Array.isArray(doc.habits)) doc = emptyDocument();
     var ui = {
@@ -244,6 +246,7 @@ if (typeof document !== 'undefined') {
     function applyTheme() {
       var root = document.documentElement;
       root.setAttribute('data-theme', settings.theme);
+      root.setAttribute('data-palette', settings.palette);
       root.classList.toggle('system-dark', !!(darkQuery && darkQuery.matches));
       var meta = document.querySelector('meta[name="theme-color"]');
       if (meta) meta.setAttribute('content', getComputedStyle(root).getPropertyValue('--elev').trim() || '#ffffff');
@@ -332,6 +335,7 @@ if (typeof document !== 'undefined') {
       renderHabits();
       if (ui.habitId) renderDetail();
       $('theme').value = settings.theme;
+      $('palette').value = settings.palette;
     }
 
     function renderHeader() {
@@ -793,9 +797,14 @@ if (typeof document !== 'undefined') {
 
     // ---- settings ----
 
-    $('settings-btn').addEventListener('click', function () { $('theme').value = settings.theme; openScreen('screen-settings'); });
+    $('settings-btn').addEventListener('click', function () { $('theme').value = settings.theme; $('palette').value = settings.palette; openScreen('screen-settings'); });
     $('theme').addEventListener('change', function (e) {
       settings.theme = e.target.value;
+      save(STORAGE.settings, settings);
+      applyTheme();
+    });
+    $('palette').addEventListener('change', function (e) {
+      settings.palette = PALETTES.indexOf(e.target.value) === -1 ? 'pear' : e.target.value;
       save(STORAGE.settings, settings);
       applyTheme();
     });
