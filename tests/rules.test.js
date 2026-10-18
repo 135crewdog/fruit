@@ -46,7 +46,8 @@ const ROWS = [
   '| 33 | 3 per week, created 2026-09-27, snoozed Oct 4–10 | Sep 28, 30, Oct 2, 12, 14, 16 | 2 | 2 | 1/1 | 6 |',
   '| 34 | 3 per week, created 2026-09-27, snoozed Oct 8–10 | Sep 28, 30, Oct 2, 5, 12, 14, 16 | 1 | 1 | 1/2 | 7 |',
   '| 35 | 5 per week, created 2026-09-27, snoozed Oct 8–10 | Sep 28, 29, 30, Oct 1, 2, 5, 6, 12, 13, 14, 15, 16 | 2 | 2 | 1/1 | 12 |',
-  '| 36 | weekdays, created 2026-10-01, snoozed from Oct 12 | Oct 1, 2, 5, 6, 7, 8, 9 | 7 | 7 | 7/7 | 7 |'
+  '| 36 | weekdays, created 2026-10-01, snoozed from Oct 12 | Oct 1, 2, 5, 6, 7, 8, 9 | 7 | 7 | 7/7 | 7 |',
+  '| 37 | weekdays, created 2026-10-01, today 2026-10-16 (Fri) | Oct 12, 13, 14, 15, 16: 0 (not done) | 4 | 4 | 4/12 | 4 |'
 ];
 
 const DEFAULT_TODAY = '2026-10-17'; // a Saturday

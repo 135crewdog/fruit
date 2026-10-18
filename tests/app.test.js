@@ -14,11 +14,14 @@ test('dates read as DD-Mmm-YY, with the weekday on the Today title', () => {
 test('streak and percent words', () => {
   const days = { schedule: { kind: 'days', days: [1] } };
   const weekly = { schedule: { kind: 'weekly', times: 3 } };
-  assert.equal(app.streakWords(days, 10), '10 days');
-  assert.equal(app.streakWords(days, 1), '1 day');
-  assert.equal(app.streakWords(days, 0), '0 days');
-  assert.equal(app.streakWords(weekly, 3), '3 weeks');
-  assert.equal(app.streakWords(weekly, 1), '1 week');
+  assert.equal(app.streakWords(days, 10), '10-day streak');
+  assert.equal(app.streakWords(days, 1), '1-day streak');
+  assert.equal(app.streakWords(days, 0), 'No streak');
+  assert.equal(app.streakWords(weekly, 3), '3-week streak');
+  assert.equal(app.streakWords(weekly, 1), '1-week streak');
+  assert.equal(app.streakUnit(days, 1), 'day');
+  assert.equal(app.streakUnit(days, 0), 'days');
+  assert.equal(app.streakUnit(weekly, 3), 'weeks');
   assert.equal(app.percentWords({ done: 5, scheduled: 12 }), '42%');
   assert.equal(app.percentWords({ done: 2, scheduled: 2 }), '100%');
   assert.equal(app.percentWords(null), '');
@@ -30,8 +33,23 @@ test('the control follows the goal: check, count, amount, slips', () => {
   assert.equal(app.controlKind(h('start', 8, 'times')), 'count');
   assert.equal(app.controlKind(h('start', 1, 'miles')), 'amount');
   assert.equal(app.controlKind(h('start', 64, 'oz')), 'amount');
-  assert.equal(app.controlKind(h('stop', 0, 'times')), 'slips');
+  assert.equal(app.controlKind(h('stop', 0, 'times')), 'check', 'a limit of 0 is the same pill as once a day');
   assert.equal(app.controlKind(h('stop', 2, 'drinks')), 'slips');
+});
+
+test('the once-a-day pill cycles ring, check, cross, ring', () => {
+  const start = { direction: 'start' }, stop = { direction: 'stop' };
+  // start, today: nothing → done → not today (a kept 0) → nothing
+  assert.equal(app.cycleAmount(start, 0, false, true), 1);
+  assert.equal(app.cycleAmount(start, 1, true, true), 0);
+  assert.ok(Number.isNaN(app.cycleAmount(start, 0, true, true)));
+  // start, a past day: done ↔ nothing; a past 0 and a past blank are the same missed day
+  assert.ok(Number.isNaN(app.cycleAmount(start, 1, true, false)));
+  assert.equal(app.cycleAmount(start, 0, false, false), 1);
+  // stop, limit 0: nothing → marked → slipped → nothing, today or not
+  assert.equal(app.cycleAmount(stop, 0, false, true), 0);
+  assert.equal(app.cycleAmount(stop, 0, true, true), 1);
+  assert.ok(Number.isNaN(app.cycleAmount(stop, 1, true, false)));
 });
 
 test('validateDraft names the first problem, in order', () => {

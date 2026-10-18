@@ -9,9 +9,9 @@
   --fill: #e5e5ea;
   --destructive: #ff3b30;
   /* Pear palette: first values, to be tuned on the phone. Dark text on all of them. */
-  --leaf: #b5c96b;
-  --pear: #d9c95a;
-  --spot: #b89a6e;
+  --leaf: #b9e24a;
+  --pear: #ffd53e;
+  --spot: #dda25e;
   --on-accent: #1c1c1e;
   --shadow: rgba(0, 0, 0, 0.1);
   color-scheme: light;
@@ -25,9 +25,9 @@
   --text2: #98989d;
   --fill: #48484a;
   --destructive: #ff453a;
-  --leaf: #9fb35a;
-  --pear: #c4b44a;
-  --spot: #a3875e;
+  --leaf: #b9e24a;
+  --pear: #ffd53e;
+  --spot: #dda25e;
   --shadow: rgba(0, 0, 0, 0.4);
   color-scheme: dark;
 }
@@ -110,6 +110,7 @@ button, input:not([type="checkbox"]), select { -webkit-appearance: none; appeara
 .screen .scroll, .sheet .scroll { flex: 1; min-height: 0; padding-bottom: calc(32px + env(safe-area-inset-bottom)); }
 @media (prefers-reduced-motion: reduce) {
   .pages, .screen, .sheet { transition: none; }
+  .row .pop { animation: none; }
 }
 
 /* Sections and cards */
@@ -140,7 +141,7 @@ button, input:not([type="checkbox"]), select { -webkit-appearance: none; appeara
 .row:last-child { border-bottom: none; }
 .row .text { flex: 1; min-width: 0; background: transparent; border: none; text-align: left; color: var(--text); padding: 0; cursor: pointer; font: inherit; }
 .row .lead { display: block; font-size: 17px; font-weight: 500; line-height: 1.3; }
-.row .sub, .row .meta { display: block; font-size: 13px; color: var(--text2); margin-top: 2px; }
+.row .sub { display: block; font-size: 13px; color: var(--text2); margin-top: 2px; }
 .date { font-size: 15px; color: var(--text2); margin-bottom: 12px; font-variant-numeric: tabular-nums; }
 .row .meta b { font-weight: 600; color: var(--text); }
 .row .streak { font-size: 15px; color: var(--text2); white-space: nowrap; font-variant-numeric: tabular-nums; }
@@ -148,32 +149,38 @@ button, input:not([type="checkbox"]), select { -webkit-appearance: none; appeara
    bleeds to the card's edges so the color reads as the whole row. */
 .row.done, .row.clean { background: var(--leaf); margin: 0 -16px; padding-left: 16px; padding-right: 16px; border-bottom-color: rgba(0, 0, 0, 0.08); }
 .row.over { background: var(--spot); margin: 0 -16px; padding-left: 16px; padding-right: 16px; border-bottom-color: rgba(0, 0, 0, 0.08); }
-.row.done .text, .row.clean .text, .row.over .text, .row.done .sub, .row.clean .sub, .row.over .sub, .row.done .meta, .row.clean .meta, .row.over .meta, .row.done .streak, .row.clean .streak, .row.over .streak { color: var(--on-accent); }
+.row.done .text, .row.clean .text, .row.over .text, .row.done .sub, .row.clean .sub, .row.over .sub, .row.done .streak, .row.clean .streak, .row.over .streak { color: var(--on-accent); }
 .card.list .row.done:first-child, .card.list .row.clean:first-child, .card.list .row.over:first-child { border-radius: 10px 10px 0 0; }
 .card.list .row.done:last-child, .card.list .row.clean:last-child, .card.list .row.over:last-child { border-radius: 0 0 10px 10px; }
 .card.list .row.done:only-child, .card.list .row.clean:only-child, .card.list .row.over:only-child { border-radius: 10px; }
 
-/* Controls on a row */
-.check {
-  flex: none; width: 40px; height: 40px; border-radius: 20px; border: 2px solid var(--border);
-  background: var(--elev); color: transparent; font-size: 22px; line-height: 1; cursor: pointer;
-}
-.row.done .check { background: var(--on-accent); border-color: var(--on-accent); color: var(--leaf); }
-.stepper { flex: none; display: flex; align-items: center; background: var(--fill); border-radius: 10px; padding: 2px; }
-.stepper button { width: 40px; height: 36px; border: none; border-radius: 8px; background: transparent; color: var(--text); font-size: 22px; line-height: 1; cursor: pointer; }
+/* The pill: every row's control is the same shape and size, at the right, so the column lines up. */
+.row .check, .row .stepper, .row .amount { flex: none; width: 128px; height: 40px; border-radius: 10px; background: var(--fill); }
+.row.done .check, .row.clean .check, .row.over .check, .row.done .stepper, .row.clean .stepper, .row.over .stepper, .row.done .amount { background: rgba(0, 0, 0, 0.12); }
+/* Once a day: one pill that cycles ring, check, cross. */
+.check { border: none; display: flex; align-items: center; justify-content: center; color: var(--on-accent); cursor: pointer; font-size: 18px; font-weight: 600; line-height: 1; }
+.check::before { content: ''; width: 18px; height: 18px; border: 2px solid var(--text2); border-radius: 50%; box-sizing: border-box; }
+.check.on::before { content: '✓'; border: none; width: auto; height: auto; }
+.check.slip::before { content: '✕'; border: none; width: auto; height: auto; }
+.stepper { display: flex; align-items: center; padding: 2px; }
+.stepper button { width: 36px; height: 36px; border: none; border-radius: 8px; background: transparent; color: var(--text); font-size: 22px; line-height: 1; cursor: pointer; }
 .stepper button:disabled { color: var(--text2); opacity: 0.5; cursor: default; }
-.stepper .n { min-width: 52px; text-align: center; font-size: 15px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.stepper .n { flex: 1; text-align: center; font-size: 15px; font-weight: 600; font-variant-numeric: tabular-nums; }
 /* The mark on a stop habit's row: an empty ring until the day is logged, a check after. */
-.stepper button.n.mark { width: auto; min-width: 52px; padding: 0 8px; background: transparent; font-size: 18px; font-weight: 600; display: flex; align-items: center; justify-content: center; }
+.stepper button.n.mark { width: auto; padding: 0 8px; background: transparent; font-size: 18px; font-weight: 600; display: flex; align-items: center; justify-content: center; }
 .stepper .ring { display: inline-block; width: 18px; height: 18px; border: 2px solid var(--text2); border-radius: 50%; }
 .row.clean .stepper .ring, .row.over .stepper .ring { border-color: var(--on-accent); }
 .stepper.partial { background: var(--pear); }
 .stepper.partial button, .stepper.partial .n { color: var(--on-accent); }
-.row.done .stepper, .row.clean .stepper, .row.over .stepper { background: rgba(0, 0, 0, 0.12); }
 .row.done .stepper button, .row.done .stepper .n, .row.clean .stepper button, .row.clean .stepper .n, .row.over .stepper button, .row.over .stepper .n { color: var(--on-accent); }
-.amount { flex: none; display: flex; align-items: center; gap: 6px; }
-.row .amount input[type="number"] { width: 84px; padding: 8px 10px; background: var(--fill); border: 1px solid var(--border); border-radius: 10px; color: var(--text); font-size: 17px; min-height: 40px; text-align: right; }
-.amount span { font-size: 13px; color: var(--text2); }
+.amount { display: flex; align-items: center; justify-content: center; gap: 5px; }
+.row .amount input[type="number"] { width: 4ch; padding: 0; background: transparent; border: none; color: var(--text); font-size: 15px; font-weight: 600; text-align: right; }
+.row .amount input[type="number"]::placeholder { color: var(--text2); }
+.amount span { font-size: 15px; font-weight: 600; color: var(--text); }
+.row.done .amount input[type="number"], .row.done .amount span { color: var(--on-accent); }
+/* The control a finger lands on answers at once: it scales up and back as it is redrawn. */
+@keyframes pop { 50% { transform: scale(1.08); } }
+.row .pop { animation: pop 0.2s ease-out; }
 .row.done .amount span { color: var(--on-accent); }
 
 /* Inputs */

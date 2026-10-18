@@ -127,7 +127,8 @@ function dayState(habit, iso, today) {
     return iso === today ? 'unsettled' : 'missed';
   }
   if (a >= habit.goal.amount) return 'done';
-  if (iso === today) return 'unsettled';
+  // A 0 on today is the mark for "not today": the day settles as missed now rather than at midnight.
+  if (iso === today) return a === 0 && logged(habit, iso) ? 'missed' : 'unsettled';
   return a > 0 ? 'partial' : 'missed';
 }
 
