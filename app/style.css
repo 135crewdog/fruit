@@ -1,4 +1,4 @@
-/* Low-Hanging Fruit: Show Time's and Apollo's iOS-style system, with the pear palette as the accent. */
+/* Low-Hanging Fruit: Show Time's and Apollo's iOS-style system, with a fruit palette as the accent. */
 
 :root {
   --bg: #f2f2f7;
@@ -8,7 +8,7 @@
   --text2: #656569;
   --fill: #e5e5ea;
   --destructive: #ff3b30;
-  /* Pear palette: first values, to be tuned on the phone. Dark text on all of them. */
+  /* The palette: three roles (done, partial, missed) and the text that sits on them. Pear by default. */
   --leaf: #b9e24a;
   --pear: #ffd53e;
   --spot: #dda25e;
@@ -16,6 +16,9 @@
   --shadow: rgba(0, 0, 0, 0.1);
   color-scheme: light;
 }
+/* The other palettes, chosen in Settings → Appearance. A palette is these four values, the same in light and dark. */
+:root[data-palette="peach"] { --leaf: #ffb37a; --pear: #ffe29a; --spot: #e06c7a; --on-accent: #1c1c1e; }
+:root[data-palette="blackberry"] { --leaf: #6a2c91; --pear: #a04f98; --spot: #a63d40; --on-accent: #ffffff; }
 :root[data-theme="dark"],
 :root:not([data-theme="light"]):not([data-theme="dark"]).system-dark {
   --bg: #000000;
@@ -25,9 +28,6 @@
   --text2: #98989d;
   --fill: #48484a;
   --destructive: #ff453a;
-  --leaf: #b9e24a;
-  --pear: #ffd53e;
-  --spot: #dda25e;
   --shadow: rgba(0, 0, 0, 0.4);
   color-scheme: dark;
 }
