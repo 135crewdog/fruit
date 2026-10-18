@@ -9,7 +9,7 @@
  */
 'use strict';
 
-var APP_VERSION = '2026.10.18.3';
+var APP_VERSION = '2026.10.18.4';
 var STORAGE = { settings: 'fruit.settings', data: 'fruit.data', backup: 'fruit.backup' };
 var MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 var LONG_DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
@@ -357,7 +357,7 @@ if (typeof document !== 'undefined') {
       var meta = [R.actionWords(h)];
       if (opts && opts.words) meta.push(R.scheduleWords(h));
       if (st === 'done') meta.push(streakWords(h, R.currentStreak(h, ui.today)));
-      if (R.forgiven(h, ui.today)) meta.push(stop ? "Don't slip twice" : "Don't miss twice");
+      if (R.forgiven(h, ui.today)) meta.push("Don't miss twice");
       text.appendChild(el('span', 'sub', meta.join(' · ')));
       row.appendChild(text);
 
