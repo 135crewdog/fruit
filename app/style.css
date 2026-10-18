@@ -108,10 +108,6 @@ button, input:not([type="checkbox"]), select { -webkit-appearance: none; appeara
 .sheet { transform: translateY(100%); }
 .screen.open, .sheet.open { transform: none; visibility: visible; }
 .screen .scroll, .sheet .scroll { flex: 1; min-height: 0; padding-bottom: calc(32px + env(safe-area-inset-bottom)); }
-@media (prefers-reduced-motion: reduce) {
-  .pages, .screen, .sheet { transition: none; }
-  .row .pop { animation: none; }
-}
 
 /* Sections and cards */
 .section { margin-bottom: 24px; }
@@ -145,14 +141,25 @@ button, input:not([type="checkbox"]), select { -webkit-appearance: none; appeara
 .date { font-size: 15px; color: var(--text2); margin-bottom: 12px; font-variant-numeric: tabular-nums; }
 .row .meta b { font-weight: 600; color: var(--text); }
 .row .streak { font-size: 15px; color: var(--text2); white-space: nowrap; font-variant-numeric: tabular-nums; }
-/* A done row turns leaf; a stop row is leaf by default and spot once over the limit. The row
-   bleeds to the card's edges so the color reads as the whole row. */
-.row.done, .row.clean { background: var(--leaf); margin: 0 -16px; padding-left: 16px; padding-right: 16px; border-bottom-color: rgba(0, 0, 0, 0.08); }
-.row.over { background: var(--spot); margin: 0 -16px; padding-left: 16px; padding-right: 16px; border-bottom-color: rgba(0, 0, 0, 0.08); }
+/* The fill: a layer behind each row, edge to edge in the card, that sweeps in from the pill side.
+   A done row fills leaf, a slipped or not-today row spot; a count or an amount in progress fills
+   pear in proportion, at half strength so the text stays readable over it in either theme. The
+   row that just changed animates from where it was (--from, --from-bg) to where it is. */
+.card.list { overflow: hidden; }
+.row { position: relative; }
+.row > * { position: relative; z-index: 1; }
+.row::before { content: ''; position: absolute; top: 0; bottom: 0; left: -16px; right: -16px; z-index: 0; background: var(--leaf); transform-origin: right center; transform: scaleX(0); }
+.row.done::before, .row.clean::before { transform: scaleX(1); }
+.row.over::before { transform: scaleX(1); background: var(--spot); }
+.row.part::before { transform: scaleX(var(--p, 0)); background: var(--pear); opacity: 0.5; }
+.row.anim::before { animation: fill 0.3s ease-out; }
+@keyframes fill { from { transform: scaleX(var(--from, 0)); background-color: var(--from-bg, var(--leaf)); } }
+/* The text keeps its plain color until the sweep has reached it, so a palette with light text on
+   its accents (Blackberry) never shows light text on the card's white for the length of the sweep. */
+.row.anim.done .text, .row.anim.clean .text, .row.anim.over .text, .row.anim.done .sub, .row.anim.clean .sub, .row.anim.over .sub { animation: fill-text 0.3s steps(1, end); }
+@keyframes fill-text { from { color: var(--text); } }
+.row.done, .row.clean, .row.over { border-bottom-color: rgba(0, 0, 0, 0.08); }
 .row.done .text, .row.clean .text, .row.over .text, .row.done .sub, .row.clean .sub, .row.over .sub, .row.done .streak, .row.clean .streak, .row.over .streak { color: var(--on-accent); }
-.card.list .row.done:first-child, .card.list .row.clean:first-child, .card.list .row.over:first-child { border-radius: 10px 10px 0 0; }
-.card.list .row.done:last-child, .card.list .row.clean:last-child, .card.list .row.over:last-child { border-radius: 0 0 10px 10px; }
-.card.list .row.done:only-child, .card.list .row.clean:only-child, .card.list .row.over:only-child { border-radius: 10px; }
 
 /* The pill: every row's control is the same shape and size, at the right, so the column lines up. */
 .row .check, .row .stepper, .row .amount, .day-editor .stepper, .day-editor .amount { flex: none; width: 128px; height: 40px; border-radius: 10px; background: var(--fill); }
@@ -293,4 +300,10 @@ input[type="date"] { background: var(--fill); border: none; border-radius: 8px; 
   position: fixed; left: 50%; bottom: calc(96px + env(safe-area-inset-bottom)); transform: translateX(-50%);
   background: var(--text); color: var(--bg); padding: 10px 14px; border-radius: 10px; font-size: 14px;
   max-width: 90vw; box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25); z-index: 10;
+}
+
+/* Reduced motion: every slide is a cut and nothing sweeps or pops. Last, so it wins every cascade above. */
+@media (prefers-reduced-motion: reduce) {
+  .pages, .screen, .sheet { transition: none; }
+  .row .pop, .row.anim::before, .row.anim .text, .row.anim .sub { animation: none; }
 }

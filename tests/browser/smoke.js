@@ -48,7 +48,7 @@ async function main() {
   page.on('dialog', (d) => d.accept());
   const shots = process.argv[2];
   // A screen takes 0.3s to slide in; a capture waits for it so the guide's pictures are whole.
-  const shot = async (name) => { if (shots) { await page.waitForTimeout(400); await page.screenshot({ path: path.join(shots, name + '.png') }); } };
+  const shot = async (name) => { if (shots) { await page.waitForTimeout(700); await page.screenshot({ path: path.join(shots, name + '.png') }); } };
   const text = async (sel) => (await page.textContent(sel)).trim();
 
   try {
@@ -78,10 +78,13 @@ async function main() {
     await page.waitForSelector('#today .row.done');
     assert.equal(await text('#today .row.done .sub'), 'floss · 1-day streak');
     assert.equal(await page.locator('#today .row .check.on').count(), 1);
+    assert.equal(await page.locator('#today .row.done.anim').count(), 1, 'the row that changed animates its fill');
+    assert.match(await text('#today .date'), /· all done$/, 'the only scheduled habit is done, so the day is');
     await shot('03-today-done');
     await page.click('#today .row .check');
     await page.waitForSelector('#today .row.over');
     assert.equal(await page.locator('#today .row .check.slip').count(), 1, 'a second tap marks not today');
+    assert.doesNotMatch(await text('#today .date'), /all done/);
     assert.deepEqual(await page.evaluate(() => Object.values(JSON.parse(localStorage.getItem('fruit.data')).habits[0].log)), [0], 'not today is a kept 0');
     await page.click('#today .row .check');
     await page.waitForSelector('#today .row:not(.done):not(.over)');
@@ -104,6 +107,7 @@ async function main() {
     for (let i = 0; i < 3; i++) await water.locator('.stepper button[aria-label="One more"]').click();
     await page.waitForFunction(() => /3 of 8/.test(document.getElementById('today').textContent));
     assert.equal(await water.locator('.stepper.partial').count(), 1, 'a partial day colors the stepper');
+    assert.equal(await water.evaluate((n) => n.classList.contains('part') && n.style.getPropertyValue('--p')), '0.375', 'the row fills in proportion');
     await water.locator('.text').click();
     await page.waitForSelector('#screen-habit.open');
     assert.equal(await page.locator('#habit-detail .cal .day.today.partial').count(), 1, 'a partial today shows as partial on the calendar');
