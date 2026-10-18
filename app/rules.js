@@ -83,9 +83,23 @@ function lastDay(habit, today) {
 
 function isStop(habit) { return habit.direction === 'stop'; }
 
+/** The snooze covering iso, or null. A snooze is { from, to }, inclusive; to is null for "until turned off". */
+function snoozeOn(habit, iso) {
+  var list = habit.snoozes || [];
+  for (var i = 0; i < list.length; i++) {
+    var z = list[i];
+    if (z.from <= iso && (z.to == null || iso <= z.to)) return z;
+  }
+  return null;
+}
+
+function isSnoozed(habit, iso) { return snoozeOn(habit, iso) !== null; }
+
+/** A day the habit asks for. A snoozed day asks nothing, whatever the schedule says. */
 function isScheduled(habit, iso) {
   if (iso < habit.created) return false;
   if (habit.archived && iso > habit.archived) return false;
+  if (isSnoozed(habit, iso)) return false;
   var s = habit.schedule;
   if (s.kind === 'days') return s.days.indexOf(weekday(iso)) !== -1;
   if (s.kind === 'every') return daysBetween(habit.created, iso) % s.days === 0;
@@ -122,20 +136,24 @@ function dayState(habit, iso, today) {
 // ---------------------------------------------------------------------------
 
 /**
- * 'met' | 'short1' | 'short' | 'unsettled' for the week starting ws.
+ * 'met' | 'short1' | 'short' | 'unsettled' | 'off' for the week starting ws.
  * Met once N settled days are done; short once the days not yet missed number
  * fewer than N (short1 when exactly N-1 are done); unsettled until one of those.
+ * Snoozed days are left out of the week, and a week with fewer days left than N
+ * is off: it drops out of every figure, as a snoozed day does.
  */
 function weekStatus(habit, ws, today) {
-  var need = habit.schedule.times, done = 0, open = 0;
+  var need = habit.schedule.times, done = 0, open = 0, snoozed = 0;
   for (var i = 0; i < 7; i++) {
     var d = addDays(ws, i);
     if (d < habit.created) continue;
     if (habit.archived && d > habit.archived) continue;
+    if (isSnoozed(habit, d)) { snoozed++; continue; }
     var st = dayState(habit, d, today);
     if (st === 'done') done++;
     else if (st === 'unsettled' || st === 'future') open++;
   }
+  if (7 - snoozed < need) return 'off';
   if (done >= need) return 'met';
   if (done + open < need) return done === need - 1 ? 'short1' : 'short';
   return 'unsettled';
@@ -163,7 +181,7 @@ function weekStreak(habit, today) {
   var n = 0, prevShort = false, first = firstWeekStart(habit), end = lastDay(habit, today);
   for (var ws = weekStart(end); ws >= first; ws = addDays(ws, -7)) {
     var st = weekStatus(habit, ws, end);
-    if (st === 'unsettled') continue;
+    if (st === 'unsettled' || st === 'off') continue;
     if (st === 'met') { n++; prevShort = false; }
     else if (st === 'short1') { if (prevShort) break; prevShort = true; }
     else break;
@@ -184,7 +202,7 @@ function currentStreak(habit, today) {
 function bestStreak(habit, today) {
   var end = lastDay(habit, today), best = 0, run = 0, prevMissed = false;
   function step(st, forgivable) {
-    if (st === 'unsettled') return;
+    if (st === 'unsettled' || st === 'off') return;
     if (st === 'done' || st === 'met') { run++; prevMissed = false; }
     else if (forgivable) { if (prevMissed) run = 0; prevMissed = true; }
     else { run = 0; prevMissed = false; }
@@ -211,8 +229,10 @@ function completion(habit, today) {
   var done = 0, scheduled = 0, end = lastDay(habit, today);
   if (habit.schedule.kind === 'weekly') {
     for (var ws = firstWeekStart(habit), current = weekStart(end); ws < current; ws = addDays(ws, 7)) {
+      var w = weekStatus(habit, ws, end);
+      if (w === 'off') continue;
       scheduled++;
-      if (weekStatus(habit, ws, end) === 'met') done++;
+      if (w === 'met') done++;
     }
   } else {
     for (var d = habit.created; d <= end; d = addDays(d, 1)) {
@@ -261,7 +281,7 @@ function forgiven(habit, today) {
     var last = null, before = null;
     for (var ws = weekStart(end); ws >= firstWeekStart(habit); ws = addDays(ws, -7)) {
       var st = weekStatus(habit, ws, end);
-      if (st === 'unsettled') continue;
+      if (st === 'unsettled' || st === 'off') continue;
       if (last === null) last = st; else { before = st; break; }
     }
     return last === 'short1' && before !== 'short1' && before !== 'short';
@@ -313,6 +333,26 @@ function scheduleWords(habit) {
   return habit.goal.amount > 1 ? amountWords(habit.goal.amount, habit.goal.unit) + ' a day, ' + lower : base;
 }
 
+/**
+ * The Snooze sheet's choice as { from, to }, starting today: 'tomorrow' covers today only,
+ * 'week' is back on this weekday next week, 'month' back on this date next month (or the last
+ * day of it), 'date' runs through the day before the picked date (tomorrow or later), 'off' is
+ * open-ended. Null when the choice or the date cannot be read.
+ */
+function snoozeRange(choice, today, date) {
+  if (choice === 'tomorrow') return { from: today, to: today };
+  if (choice === 'week') return { from: today, to: addDays(today, 6) };
+  if (choice === 'off') return { from: today, to: null };
+  if (choice === 'date') return isIsoDate(date) && date > today ? { from: today, to: addDays(date, -1) } : null;
+  if (choice === 'month') {
+    var y = +today.slice(0, 4), m = +today.slice(5, 7), d = +today.slice(8, 10);
+    if (++m > 12) { m = 1; y++; }
+    var days = new Date(Date.UTC(y, m, 0)).getUTCDate(); // last day of month m
+    return { from: today, to: addDays(y + '-' + pad2(m) + '-' + pad2(Math.min(d, days)), -1) };
+  }
+  return null;
+}
+
 /** "Become a morning person": the identity leads every list row. */
 function identityWords(habit) {
   return ('Become ' + habit.identity).replace(/\s+/g, ' ').trim();
@@ -344,6 +384,9 @@ if (typeof module !== 'undefined' && module.exports) {
     weekStart: weekStart,
     firstWeekStart: firstWeekStart,
     isScheduled: isScheduled,
+    snoozeOn: snoozeOn,
+    isSnoozed: isSnoozed,
+    snoozeRange: snoozeRange,
     logged: logged,
     dayState: dayState,
     weekStatus: weekStatus,
