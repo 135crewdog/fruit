@@ -48,10 +48,10 @@ button, input, select { font-family: inherit; touch-action: manipulation; }
 button, input:not([type="checkbox"]), select { -webkit-appearance: none; appearance: none; }
 .hidden { display: none !important; }
 
-/* Sized by inset: 0, never by a viewport unit: 100dvh falls short of the screen in an iOS
-   home-screen app and left a band beneath the tab bar. */
+/* Sized with 100vh, as Show Time is. In an iOS home-screen app that is the whole screen; both
+   100dvh and a fixed box with inset: 0 came out about 60pt short and left a band under the tab bar. */
 .app {
-  position: fixed; inset: 0;
+  position: relative; height: 100vh;
   max-width: 430px; margin: 0 auto;
   display: flex; flex-direction: column;
   padding-top: env(safe-area-inset-top);
@@ -98,7 +98,7 @@ button, input:not([type="checkbox"]), select { -webkit-appearance: none; appeara
 
 /* Pushed screens slide in from the right; the sheet rises from the bottom. Both cover the shell. */
 .screen, .sheet {
-  position: fixed; inset: 0; z-index: 5; display: flex; flex-direction: column;
+  position: fixed; top: 0; left: 0; right: 0; height: 100vh; z-index: 5; display: flex; flex-direction: column;
   max-width: 430px; margin: 0 auto;
   background: var(--bg); padding-top: env(safe-area-inset-top);
   transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), visibility 0.3s;
