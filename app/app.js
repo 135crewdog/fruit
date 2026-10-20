@@ -9,7 +9,7 @@
  */
 'use strict';
 
-var APP_VERSION = '2026.10.20.3';
+var APP_VERSION = '2026.10.20.4';
 var STORAGE = { settings: 'fruit.settings', data: 'fruit.data', backup: 'fruit.backup' };
 var MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 var LONG_DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
@@ -872,11 +872,31 @@ if (typeof document !== 'undefined') {
     setInterval(checkDay, 60000);
     document.addEventListener('visibilitychange', function () { if (!document.hidden) checkDay(); });
 
+    // ---- the splash: Zeno's line, on the first open of each day ----
+
+    var SPLASH_MS = 3000;
+    function showSplash() {
+      if (settings.splash === ui.today) return;
+      settings.splash = ui.today;
+      save(STORAGE.settings, settings);
+      var s = $('splash'), gone = false;
+      function hide() {
+        if (gone) return;
+        gone = true;
+        s.classList.add('fade');
+        setTimeout(function () { s.classList.add('hidden'); }, 450);
+      }
+      s.addEventListener('click', hide);
+      s.classList.remove('hidden');
+      setTimeout(hide, SPLASH_MS);
+    }
+
     // ---- start ----
 
     applyTheme();
     setTab(0);
     render();
+    showSplash();
     if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(function () { /* the app still works online */ });
   })();
 }
