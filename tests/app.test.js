@@ -131,6 +131,50 @@ test('month grid helpers', () => {
   assert.equal(cells[34], '2026-10-31');
 });
 
+test('documentProblem names the first thing wrong with a file, and normalizeDocument fills the optional fields', () => {
+  const habit = () => ({ id: 'h_1', action: 'floss', cue: '', identity: 'someone who keeps their teeth', direction: 'start', created: '2026-10-01', archived: null, snoozes: [], schedule: { kind: 'days', days: [1, 2, 3, 4, 5] }, goal: { amount: 1, unit: 'times' }, log: { '2026-10-02': 1 } });
+  const doc = (...habits) => ({ v: 1, updated: '2026-10-17T20:14:03Z', habits });
+  assert.equal(app.documentProblem(doc(habit())), '');
+  assert.equal(app.documentProblem(doc()), '');
+  assert.equal(app.documentProblem(null), 'not a document');
+  assert.equal(app.documentProblem([]), 'not a document');
+  assert.equal(app.documentProblem({ v: 2, updated: '', habits: [] }), 'v is not 1');
+  assert.equal(app.documentProblem({ v: 1, updated: '', habits: {} }), 'habits is not a list');
+  const bad = (change) => { const h = habit(); change(h); return app.documentProblem(doc(habit(), h)); };
+  assert.equal(bad((h) => { h.id = ''; }), 'habit 2: id is missing');
+  assert.equal(bad((h) => { h.action = '  '; }), 'habit 2: action is missing');
+  assert.equal(bad((h) => { h.identity = 7; }), 'habit 2: identity is missing');
+  assert.equal(bad((h) => { h.direction = 'pause'; }), 'habit 2: direction is not start or stop');
+  assert.equal(bad((h) => { h.created = '2026-13-01'; }), 'habit 2: created is not a date');
+  assert.equal(bad((h) => { h.archived = 'soon'; }), 'habit 2: archived is not a date');
+  assert.equal(bad((h) => { h.snoozes = [{ from: '2026-10-12', to: '2026-10-11' }]; }), 'habit 2: snooze 1 ends before it starts');
+  assert.equal(bad((h) => { h.snoozes = [{ from: '2026-10-12', to: null }]; }), '', 'an open snooze is fine');
+  assert.equal(bad((h) => { h.schedule = { kind: 'days', days: [] }; }), 'habit 2: schedule has no days');
+  assert.equal(bad((h) => { h.schedule = { kind: 'days', days: [1, 7] }; }), 'habit 2: schedule days are not weekdays 0 to 6');
+  assert.equal(bad((h) => { h.schedule = { kind: 'days', days: [1, 1] }; }), 'habit 2: schedule days are not weekdays 0 to 6');
+  assert.equal(bad((h) => { h.schedule = { kind: 'weekly', times: 8 }; }), 'habit 2: times a week is not 1 to 7');
+  assert.equal(bad((h) => { h.schedule = { kind: 'every', days: 2.5 }; }), 'habit 2: every N days is not a whole number');
+  assert.equal(bad((h) => { h.direction = 'stop'; h.goal.amount = 0; h.schedule = { kind: 'every', days: 3 }; }), 'habit 2: a stop habit cannot be every N days');
+  assert.equal(bad((h) => { h.schedule = { kind: 'monthly' }; }), 'habit 2: schedule kind is unknown');
+  assert.equal(bad((h) => { h.goal.amount = 0; }), 'habit 2: goal amount is not above 0');
+  assert.equal(bad((h) => { h.direction = 'stop'; h.goal.amount = 0; }), '', 'a limit of 0 is fine');
+  assert.equal(bad((h) => { h.direction = 'stop'; h.goal.amount = -1; }), 'habit 2: limit is below 0');
+  assert.equal(bad((h) => { h.goal.unit = ''; }), 'habit 2: goal unit is missing');
+  assert.equal(bad((h) => { h.log = [1]; }), 'habit 2: log is missing');
+  assert.equal(bad((h) => { h.log = { 'yesterday': 1 }; }), 'habit 2: log date yesterday is not a date');
+  assert.equal(bad((h) => { h.log = { '2026-10-02': '1' }; }), 'habit 2: log amount on 2026-10-02 is not a number');
+  // The optional fields may be missing and are filled in
+  const sparse = habit(); delete sparse.cue; delete sparse.snoozes; delete sparse.archived;
+  assert.equal(app.documentProblem(doc(sparse)), '');
+  const norm = app.normalizeDocument(doc(sparse));
+  assert.deepEqual(norm.habits[0], habit());
+  assert.equal(norm.updated, '2026-10-17T20:14:03Z');
+  assert.equal(app.serializeDocument(app.emptyDocument()), '{\n  "v": 1,\n  "updated": "",\n  "habits": []\n}\n');
+  assert.equal(app.plural(1, 'habit'), '1 habit');
+  assert.equal(app.plural(2, 'habit'), '2 habits');
+  assert.equal(app.FILE_NAME, 'Low-Hanging Fruit.json');
+});
+
 test('ids and the empty document', () => {
   assert.match(app.newId(), /^h_[a-z0-9]+$/);
   assert.notEqual(app.newId(), app.newId());

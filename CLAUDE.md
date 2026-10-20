@@ -20,8 +20,8 @@ Ask the user before adding anything that is not in this file. Ideas that were di
 |---|---|---|
 | 1 | This file and `README.md`, agreed and merged. Nothing else. | Done, 2026-10-17 |
 | 2 | `app/rules.js` and `tests/rules.test.js` from the required test tables below. | Done, 2026-10-17 |
-| 3 | The app in `app/`, local only (no backup yet), published to GitHub Pages at `https://135crewdog.github.io/fruit/` and looked at on the iPhone. | In review |
-| 4 | `apps-script/Code.js`, the Backup section of Settings, Export and Import, and the guide. | |
+| 3 | The app in `app/`, local only (no backup yet), published to GitHub Pages at `https://135crewdog.github.io/fruit/` and looked at on the iPhone. | Done, 2026-10-20 |
+| 4 | `apps-script/Code.js`, the Backup section of Settings, Export and Import, and the guide. | In progress: Export and Import done |
 
 ## The data
 
@@ -249,7 +249,7 @@ After a code change, bump `SCRIPT_VERSION`, paste again and deploy a **new versi
 - Every change to the document sets `updated` and marks the backup pending. A backup runs a few seconds after the last change when online, and on load, on `online`, when the app becomes visible, and from Back up now, while one is pending. A failure keeps it pending and shows the error in Settings.
 - "Backup is newer" is shown in Settings with a Restore button; nothing is overwritten either way without the user choosing.
 - Restore from backup replaces the local document with the stored one, after asking. On first run with a URL and token saved and no habits, the app offers Restore itself.
-- Export writes the document to `Low-Hanging Fruit.json` through the share sheet. Import reads one, checks it is a document as described under The data (`v` is 1, every habit has its fields with valid values, every log key a date and every amount a number, every snooze a pair of dates in order or an open end) and names the first problem if not, then replaces the local document after asking. Both work with no backend at all.
+- Export writes the document to `Low-Hanging Fruit.json` through the share sheet. Import reads one, checks it is a document as described under The data (`v` is 1, every habit has its fields with valid values, every log key a date and every amount a number, every snooze a pair of dates in order or an open end) and names the first problem if not (`habit 2: created is not a date`), then replaces the local document after asking; a habit without `cue`, `archived` or `snoozes` gets the empty default. The file is the document as readable JSON (two-space indent), the same bytes the backup sends. Export goes through the share sheet where the browser has one and downloads otherwise. Both work with no backend at all.
 - The URL and token are typed into Settings once. Never commit either.
 
 ## Architecture

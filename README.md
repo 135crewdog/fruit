@@ -6,7 +6,7 @@ Low-Hanging Fruit follows the [HIG](https://135crewdog.github.io/hig/) as a focu
 
 ## Status
 
-Milestone 3: the app, local only. Habits and check-ins live on the phone; the Drive backup, Export and Import come in milestone 4. The milestones are in `CLAUDE.md`.
+Milestone 4, in progress. The app is live and in use; Export and Import are in; the Drive backup and the guide are next. The milestones are in `CLAUDE.md`.
 
 ## Layout
 

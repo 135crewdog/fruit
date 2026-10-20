@@ -260,6 +260,7 @@ input[type="date"] { background: var(--fill); border: none; border-radius: 8px; 
 .btn + .btn { margin-top: 12px; }
 #add-habit { margin-bottom: 24px; }
 .card > .btn + .hint { margin-top: 12px; }
+.card > .btn + .btn { margin-top: 10px; }
 .version { text-align: center; margin-top: 24px; font-size: 13px; color: var(--text2); }
 
 /* Figures: four in a 2×2 card */
