@@ -378,6 +378,17 @@ async function main() {
     await page.setInputFiles('#import-file', { name: 'bad.json', mimeType: 'application/json', buffer: Buffer.from('{"v":2,"updated":"","habits":[]}') });
     await page.waitForFunction(() => document.getElementById('toast').textContent.includes('v is not 1'));
     assert.equal(await page.evaluate(() => localStorage.getItem('fruit.data')), before);
+    // A save that fails leaves the document alone and says so
+    await page.evaluate(() => { window.__setItem = Storage.prototype.setItem; Storage.prototype.setItem = function () { throw new Error('full'); }; });
+    await page.setInputFiles('#import-file', { name: app.FILE_NAME, mimeType: 'application/json', buffer: Buffer.from('{"v":1,"updated":"","habits":[]}') });
+    await page.waitForFunction(() => document.getElementById('toast').textContent.includes('Nothing was imported'));
+    await page.evaluate(() => { Storage.prototype.setItem = window.__setItem; });
+    assert.equal(await page.evaluate(() => localStorage.getItem('fruit.data')), before);
+    await page.click('#done');
+    await page.click('[data-tab="1"]');
+    assert.doesNotMatch(await text('#habits'), /No habits yet/, 'the habits are still on the screen');
+    await page.click('#settings-btn');
+    await page.waitForSelector('#screen-settings.open');
     const imported = { v: 1, updated: '2026-10-01T00:00:00Z', habits: [{ id: 'h_import', action: 'stretch', identity: 'limber', direction: 'start', created: '2026-10-01', schedule: { kind: 'days', days: [0, 1, 2, 3, 4, 5, 6] }, goal: { amount: 1, unit: 'times' }, log: {} }] };
     await page.setInputFiles('#import-file', { name: app.FILE_NAME, mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(imported)) });
     await page.waitForFunction(() => document.getElementById('toast').textContent === 'Imported 1 habit');

@@ -9,7 +9,7 @@
  */
 'use strict';
 
-var APP_VERSION = '2026.10.20.6';
+var APP_VERSION = '2026.10.20.7';
 var STORAGE = { settings: 'fruit.settings', data: 'fruit.data', backup: 'fruit.backup' };
 var MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 var LONG_DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
@@ -115,15 +115,23 @@ function plural(n, word) { return n + ' ' + word + (n === 1 ? '' : 's'); }
 
 function isCount(n) { return typeof n === 'number' && isFinite(n) && Math.floor(n) === n && n >= 1; }
 
+/** '' (a document never changed) or a UTC instant as toISOString() writes it. */
+function isInstant(s) {
+  return s === '' || (typeof s === 'string' && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/.test(s) && !isNaN(Date.parse(s)));
+}
+
 /** The first thing wrong with a document read from a file, or '' when it is one as The data describes. */
 function documentProblem(doc) {
   if (!doc || typeof doc !== 'object' || Array.isArray(doc)) return 'not a document';
   if (doc.v !== 1) return 'v is not 1';
-  if (typeof doc.updated !== 'string') return 'updated is not text';
+  if (!isInstant(doc.updated)) return 'updated is not a UTC instant';
   if (!Array.isArray(doc.habits)) return 'habits is not a list';
+  var seen = {};
   for (var i = 0; i < doc.habits.length; i++) {
     var p = habitProblem(doc.habits[i]);
     if (p) return 'habit ' + (i + 1) + ': ' + p;
+    if (seen[doc.habits[i].id]) return 'habit ' + (i + 1) + ': id ' + doc.habits[i].id + ' is used twice';
+    seen[doc.habits[i].id] = true;
   }
   return '';
 }
@@ -151,7 +159,8 @@ function habitProblem(h) {
   if (s.kind === 'days') {
     if (!Array.isArray(s.days) || !s.days.length) return 'schedule has no days';
     for (var d = 0; d < s.days.length; d++) {
-      if (!isCount(s.days[d] + 1) || s.days[d] > 6 || s.days.indexOf(s.days[d]) !== d) return 'schedule days are not weekdays 0 to 6';
+      var w = s.days[d];
+      if (typeof w !== 'number' || Math.floor(w) !== w || w < 0 || w > 6 || s.days.indexOf(w) !== d) return 'schedule days are not weekdays 0 to 6';
     }
   } else if (s.kind === 'weekly') {
     if (!isCount(s.times) || s.times > 7) return 'times a week is not 1 to 7';
@@ -163,6 +172,7 @@ function habitProblem(h) {
   if (!g || typeof g !== 'object' || typeof g.amount !== 'number' || !isFinite(g.amount)) return 'goal amount is not a number';
   if (stop ? g.amount < 0 : g.amount <= 0) return stop ? 'limit is below 0' : 'goal amount is not above 0';
   if (typeof g.unit !== 'string' || !g.unit.trim()) return 'goal unit is missing';
+  if (g.unit === 'times' && g.amount !== Math.floor(g.amount)) return 'times is not a whole number';
   if (!h.log || typeof h.log !== 'object' || Array.isArray(h.log)) return 'log is missing';
   for (var k in h.log) {
     if (!isIsoDate(k)) return 'log date ' + k + ' is not a date';
@@ -962,8 +972,9 @@ if (typeof document !== 'undefined') {
       if (problem) { toast('Not a Low-Hanging Fruit file: ' + problem); return; }
       var n = parsed.habits.length;
       if (!window.confirm('Replace the ' + plural(doc.habits.length, 'habit') + ' on this device with the ' + plural(n, 'habit') + ' in this file? This cannot be undone.')) return;
-      doc = normalizeDocument(parsed);
-      if (!save(STORAGE.data, doc)) toast('Could not save on this device: storage is full or blocked.');
+      var next = normalizeDocument(parsed);
+      if (!save(STORAGE.data, next)) { toast('Could not save on this device: storage is full or blocked. Nothing was imported.'); return; }
+      doc = next;
       closeScreen('screen-habit');
       render();
       toast('Imported ' + plural(n, 'habit'));
