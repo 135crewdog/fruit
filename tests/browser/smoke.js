@@ -71,12 +71,12 @@ async function main() {
     await page.waitForSelector('#screen-edit:not(.open)');
     await page.waitForSelector('#today .row .lead');
     assert.equal(await text('#today .row .lead'), 'Become someone who keeps their teeth');
-    assert.equal(await text('#today .row .sub'), 'floss');
+    assert.equal(await text('#today .row .sub'), 'Floss');
     assert.equal(await page.locator('#today .row .check.on, #today .row .check.slip').count(), 0, 'the pill starts as a ring');
     // The once-a-day pill cycles: ring → check (done) → cross (not today) → ring
     await page.click('#today .row .check');
     await page.waitForSelector('#today .row.done');
-    assert.equal(await text('#today .row.done .sub'), 'floss · 1-day streak');
+    assert.equal(await text('#today .row.done .sub'), 'Floss · 1-day streak');
     assert.equal(await page.locator('#today .row .check.on').count(), 1);
     assert.equal(await page.locator('#today .row.done.anim').count(), 1, 'the row that changed animates its fill');
     assert.match(await text('#today .date'), /· all done$/, 'the only scheduled habit is done, so the day is');
@@ -182,7 +182,7 @@ async function main() {
     await page.click('[data-tab="1"]');
     assert.equal(await text('#title'), 'Habits');
     assert.equal(await page.locator('#habits .row').count(), 4);
-    assert.match(await text('#habits'), /Every day/);
+    assert.match(await text('#habits'), /Floss · every day/);
     await shot('07-habits');
 
     // Habit screen: statement, figures, calendar with today ringed, backfill by tapping today

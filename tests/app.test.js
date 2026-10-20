@@ -27,6 +27,14 @@ test('streak and percent words', () => {
   assert.equal(app.percentWords(null), '');
 });
 
+test('sentenceLine makes one sentence-case line, keeping day names and dates', () => {
+  assert.equal(app.sentenceLine(['get out of bed before 6 a.m.', 'Weekdays', 'Snoozed until turned off']), 'Get out of bed before 6 a.m. · weekdays · snoozed until turned off');
+  assert.equal(app.sentenceLine(['not view pornography', 'Every day']), 'Not view pornography · every day');
+  assert.equal(app.sentenceLine(['exercise', '4 times a week', '', '3-day streak']), 'Exercise · 4 times a week · 3-day streak');
+  assert.equal(app.sentenceLine(['run', 'Mon, Wed, Fri', 'Snoozed until 25-Oct-26']), 'Run · Mon, Wed, Fri · snoozed until 25-Oct-26');
+  assert.equal(app.sentenceLine(['floss']), 'Floss');
+});
+
 test('the control follows the goal: check, count, amount, slips', () => {
   const h = (direction, amount, unit) => ({ direction, goal: { amount, unit } });
   assert.equal(app.controlKind(h('start', 1, 'times')), 'check');
