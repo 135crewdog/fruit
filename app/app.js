@@ -9,7 +9,7 @@
  */
 'use strict';
 
-var APP_VERSION = '2026.10.18.5';
+var APP_VERSION = '2026.10.20.1';
 var STORAGE = { settings: 'fruit.settings', data: 'fruit.data', backup: 'fruit.backup' };
 var MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 var LONG_DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
@@ -43,6 +43,23 @@ function longDate(iso, weekday) {
 /** 'Oct 2026' for the calendar head, from 'YYYY-MM'. */
 function monthWords(ym) {
   return MONTHS[Number(ym.slice(5, 7)) - 1] + ' ' + ym.slice(0, 4);
+}
+
+/**
+ * One gray line in sentence case from its parts: the first letter of the line capitalized, every
+ * later part starting lowercase, except a day name (Mon, Wed, Fri) or a date (25-Oct-26), which keep
+ * their capitals. A first word with a capital inside it (iPhone, eBay) is a proper noun typed that
+ * way and is left alone. Parts are joined with a middle dot.
+ */
+function sentenceLine(parts) {
+  var keep = /^(Sun|Mon|Tue|Wed|Thu|Fri|Sat)\b|^\d/;
+  var out = parts.filter(Boolean).map(function (p, i) {
+    p = String(p);
+    if (/[A-Z]/.test(p.split(' ')[0].slice(1))) return p; // mixed case inside the first word: leave it
+    if (i === 0) return p.charAt(0).toUpperCase() + p.slice(1);
+    return keep.test(p) ? p : p.charAt(0).toLowerCase() + p.slice(1);
+  });
+  return out.join(' · ');
 }
 
 /** 'day', 'days', 'week', 'weeks': the unit a habit's streak is counted in. */
@@ -380,7 +397,7 @@ if (typeof document !== 'undefined') {
       if (opts && opts.words) meta.push(R.scheduleWords(h));
       if (st === 'done') meta.push(streakWords(h, R.currentStreak(h, ui.today)));
       if (R.forgiven(h, ui.today)) meta.push("Don't miss twice");
-      text.appendChild(el('span', 'sub', meta.join(' · ')));
+      text.appendChild(el('span', 'sub', sentenceLine(meta)));
       row.appendChild(text);
 
       var control;
@@ -494,7 +511,7 @@ if (typeof document !== 'undefined') {
       var text = button('text', null, function () { openHabit(h.id); });
       text.appendChild(el('span', 'lead', R.identityWords(h)));
       var z = h.archived ? null : R.snoozeOn(h, ui.today);
-      text.appendChild(el('span', 'sub', R.actionWords(h) + ' · ' + R.scheduleWords(h) + (h.archived ? ' · archived ' + formatDisplayDate(h.archived) : '') + (z ? ' · ' + snoozeWords(z).toLowerCase() : '')));
+      text.appendChild(el('span', 'sub', sentenceLine([R.actionWords(h), R.scheduleWords(h), h.archived ? 'archived ' + formatDisplayDate(h.archived) : '', z ? snoozeWords(z) : ''])));
       row.appendChild(text);
       row.appendChild(el('span', 'streak', streakWords(h, R.currentStreak(h, ui.today))));
       return row;
@@ -873,6 +890,7 @@ if (typeof module !== 'undefined' && module.exports) {
     monthWords: monthWords,
     streakWords: streakWords,
     streakUnit: streakUnit,
+    sentenceLine: sentenceLine,
     cycleAmount: cycleAmount,
     percentWords: percentWords,
     controlKind: controlKind,
