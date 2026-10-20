@@ -33,6 +33,8 @@ test('sentenceLine makes one sentence-case line, keeping day names and dates', (
   assert.equal(app.sentenceLine(['exercise', '4 times a week', '', '3-day streak']), 'Exercise · 4 times a week · 3-day streak');
   assert.equal(app.sentenceLine(['run', 'Mon, Wed, Fri', 'Snoozed until 25-Oct-26']), 'Run · Mon, Wed, Fri · snoozed until 25-Oct-26');
   assert.equal(app.sentenceLine(['floss']), 'Floss');
+  assert.equal(app.sentenceLine(['iPhone detox', 'Every day']), 'iPhone detox · every day', 'a first word with a capital inside it is left as typed');
+  assert.equal(app.sentenceLine(['read', 'eBay break']), 'Read · eBay break');
 });
 
 test('the control follows the goal: check, count, amount, slips', () => {

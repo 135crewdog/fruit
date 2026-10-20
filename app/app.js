@@ -48,12 +48,14 @@ function monthWords(ym) {
 /**
  * One gray line in sentence case from its parts: the first letter of the line capitalized, every
  * later part starting lowercase, except a day name (Mon, Wed, Fri) or a date (25-Oct-26), which keep
- * their capitals. Parts are joined with a middle dot.
+ * their capitals. A first word with a capital inside it (iPhone, eBay) is a proper noun typed that
+ * way and is left alone. Parts are joined with a middle dot.
  */
 function sentenceLine(parts) {
   var keep = /^(Sun|Mon|Tue|Wed|Thu|Fri|Sat)\b|^\d/;
   var out = parts.filter(Boolean).map(function (p, i) {
     p = String(p);
+    if (/[A-Z]/.test(p.split(' ')[0].slice(1))) return p; // mixed case inside the first word: leave it
     if (i === 0) return p.charAt(0).toUpperCase() + p.slice(1);
     return keep.test(p) ? p : p.charAt(0).toLowerCase() + p.slice(1);
   });
