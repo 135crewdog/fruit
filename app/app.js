@@ -9,7 +9,7 @@
  */
 'use strict';
 
-var APP_VERSION = '2026.10.20.1';
+var APP_VERSION = '2026.10.20.2';
 var STORAGE = { settings: 'fruit.settings', data: 'fruit.data', backup: 'fruit.backup' };
 var MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 var LONG_DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
