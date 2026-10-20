@@ -9,7 +9,7 @@
  */
 'use strict';
 
-var APP_VERSION = '2026.10.20.4';
+var APP_VERSION = '2026.10.20.5';
 var STORAGE = { settings: 'fruit.settings', data: 'fruit.data', backup: 'fruit.backup' };
 var MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 var LONG_DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
@@ -877,7 +877,7 @@ if (typeof document !== 'undefined') {
     // A same-day open hides it before the first paint (the inline script in index.html sets `no-splash` on
     // the root). Here it is shown when the day is new: at start, and when the app is brought back after the
     // day turned over while it stayed loaded. Hiding is a fade; `visibility: hidden` takes the taps with it.
-    var SPLASH_MS = 3000, splashTimer = null;
+    var SPLASH_MS = 5000, splashTimer = null;
     function hideSplash() { clearTimeout(splashTimer); $('splash').classList.add('fade'); }
     function showSplash() {
       if (settings.splash === ui.today) return;
