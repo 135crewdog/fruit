@@ -1,7 +1,7 @@
 /* Low-Hanging Fruit service worker: caches the app shell so the app opens offline.
  * Bump VERSION on every change to any file in app/, or devices keep the old copy.
  * The backup script, when it comes, is on another origin and is never intercepted. */
-var VERSION = 'fruit-2026.10.20.2';
+var VERSION = 'fruit-2026.10.20.3';
 var SHELL = ['./', './index.html', './app.js', './rules.js', './style.css', './manifest.webmanifest', './icon-192.png', './icon-512.png'];
 
 self.addEventListener('install', function (event) {
