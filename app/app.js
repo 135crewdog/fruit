@@ -9,7 +9,7 @@
  */
 'use strict';
 
-var APP_VERSION = '2026.10.20.5';
+var APP_VERSION = '2026.10.20.7';
 var STORAGE = { settings: 'fruit.settings', data: 'fruit.data', backup: 'fruit.backup' };
 var MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 var LONG_DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
@@ -105,6 +105,96 @@ function controlKind(habit) {
 }
 
 function emptyDocument() { return { v: 1, updated: '', habits: [] }; }
+
+var FILE_NAME = 'Low-Hanging Fruit.json';
+
+/** The document as a file: readable JSON, the same bytes for the export and the backup. */
+function serializeDocument(doc) { return JSON.stringify(doc, null, 2) + '\n'; }
+
+function plural(n, word) { return n + ' ' + word + (n === 1 ? '' : 's'); }
+
+function isCount(n) { return typeof n === 'number' && isFinite(n) && Math.floor(n) === n && n >= 1; }
+
+/** '' (a document never changed) or a UTC instant as toISOString() writes it. */
+function isInstant(s) {
+  return s === '' || (typeof s === 'string' && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/.test(s) && !isNaN(Date.parse(s)));
+}
+
+/** The first thing wrong with a document read from a file, or '' when it is one as The data describes. */
+function documentProblem(doc) {
+  if (!doc || typeof doc !== 'object' || Array.isArray(doc)) return 'not a document';
+  if (doc.v !== 1) return 'v is not 1';
+  if (!isInstant(doc.updated)) return 'updated is not a UTC instant';
+  if (!Array.isArray(doc.habits)) return 'habits is not a list';
+  var seen = {};
+  for (var i = 0; i < doc.habits.length; i++) {
+    var p = habitProblem(doc.habits[i]);
+    if (p) return 'habit ' + (i + 1) + ': ' + p;
+    if (seen[doc.habits[i].id]) return 'habit ' + (i + 1) + ': id ' + doc.habits[i].id + ' is used twice';
+    seen[doc.habits[i].id] = true;
+  }
+  return '';
+}
+
+function habitProblem(h) {
+  if (!h || typeof h !== 'object' || Array.isArray(h)) return 'not a habit';
+  if (typeof h.id !== 'string' || !h.id) return 'id is missing';
+  if (typeof h.action !== 'string' || !h.action.trim()) return 'action is missing';
+  if (h.cue != null && typeof h.cue !== 'string') return 'cue is not text';
+  if (typeof h.identity !== 'string' || !h.identity.trim()) return 'identity is missing';
+  var stop = h.direction === 'stop';
+  if (h.direction !== 'start' && !stop) return 'direction is not start or stop';
+  if (!isIsoDate(h.created)) return 'created is not a date';
+  if (h.archived != null && !isIsoDate(h.archived)) return 'archived is not a date';
+  if (h.snoozes != null) {
+    if (!Array.isArray(h.snoozes)) return 'snoozes is not a list';
+    for (var i = 0; i < h.snoozes.length; i++) {
+      var z = h.snoozes[i];
+      if (!z || typeof z !== 'object' || !isIsoDate(z.from)) return 'snooze ' + (i + 1) + ' has no from date';
+      if (z.to != null && (!isIsoDate(z.to) || z.to < z.from)) return 'snooze ' + (i + 1) + ' ends before it starts';
+    }
+  }
+  var s = h.schedule;
+  if (!s || typeof s !== 'object') return 'schedule is missing';
+  if (s.kind === 'days') {
+    if (!Array.isArray(s.days) || !s.days.length) return 'schedule has no days';
+    for (var d = 0; d < s.days.length; d++) {
+      var w = s.days[d];
+      if (typeof w !== 'number' || Math.floor(w) !== w || w < 0 || w > 6 || s.days.indexOf(w) !== d) return 'schedule days are not weekdays 0 to 6';
+    }
+  } else if (s.kind === 'weekly') {
+    if (!isCount(s.times) || s.times > 7) return 'times a week is not 1 to 7';
+  } else if (s.kind === 'every') {
+    if (stop) return 'a stop habit cannot be every N days';
+    if (!isCount(s.days)) return 'every N days is not a whole number';
+  } else return 'schedule kind is unknown';
+  var g = h.goal;
+  if (!g || typeof g !== 'object' || typeof g.amount !== 'number' || !isFinite(g.amount)) return 'goal amount is not a number';
+  if (stop ? g.amount < 0 : g.amount <= 0) return stop ? 'limit is below 0' : 'goal amount is not above 0';
+  if (typeof g.unit !== 'string' || !g.unit.trim()) return 'goal unit is missing';
+  if (g.unit === 'times' && g.amount !== Math.floor(g.amount)) return 'times is not a whole number';
+  if (!h.log || typeof h.log !== 'object' || Array.isArray(h.log)) return 'log is missing';
+  for (var k in h.log) {
+    if (!isIsoDate(k)) return 'log date ' + k + ' is not a date';
+    if (typeof h.log[k] !== 'number' || !isFinite(h.log[k]) || h.log[k] < 0) return 'log amount on ' + k + ' is not a number';
+  }
+  return '';
+}
+
+/** A valid document with the optional fields filled in: a habit without cue, archived or snoozes gets the empty default. */
+function normalizeDocument(doc) {
+  return {
+    v: 1, updated: doc.updated,
+    habits: doc.habits.map(function (h) {
+      var out = {};
+      for (var k in h) out[k] = h[k];
+      out.cue = h.cue || '';
+      out.archived = h.archived || null;
+      out.snoozes = h.snoozes || [];
+      return out;
+    })
+  };
+}
 
 function newId() {
   return 'h_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
@@ -853,6 +943,53 @@ if (typeof document !== 'undefined') {
       save(STORAGE.settings, settings);
       applyTheme();
     });
+    // ---- export and import: the document as a file, no backend needed ----
+
+    function exportFile() {
+      var text = serializeDocument(doc);
+      var blob = new Blob([text], { type: 'application/json' });
+      var file = typeof File === 'function' ? new File([blob], FILE_NAME, { type: 'application/json' }) : null;
+      if (file && navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+        // The share sheet: Save to Files, AirDrop, Mail. A cancel is not an error; anything else falls back to a download.
+        navigator.share({ files: [file], title: 'Low-Hanging Fruit' }).catch(function (err) { if (!err || err.name !== 'AbortError') downloadFile(blob); });
+        return;
+      }
+      downloadFile(blob);
+    }
+    function downloadFile(blob) {
+      var a = document.createElement('a'), href = URL.createObjectURL(blob);
+      a.href = href;
+      a.download = FILE_NAME;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(function () { URL.revokeObjectURL(href); }, 1000);
+    }
+    function importText(text) {
+      var parsed;
+      try { parsed = JSON.parse(text); } catch (err) { toast('Not a JSON file'); return; }
+      var problem = documentProblem(parsed);
+      if (problem) { toast('Not a Low-Hanging Fruit file: ' + problem); return; }
+      var n = parsed.habits.length;
+      if (!window.confirm('Replace the ' + plural(doc.habits.length, 'habit') + ' on this device with the ' + plural(n, 'habit') + ' in this file? This cannot be undone.')) return;
+      var next = normalizeDocument(parsed);
+      if (!save(STORAGE.data, next)) { toast('Could not save on this device: storage is full or blocked. Nothing was imported.'); return; }
+      doc = next;
+      closeScreen('screen-habit');
+      render();
+      toast('Imported ' + plural(n, 'habit'));
+    }
+    $('export-btn').addEventListener('click', exportFile);
+    $('import-btn').addEventListener('click', function () { $('import-file').value = ''; $('import-file').click(); });
+    $('import-file').addEventListener('change', function (e) {
+      var file = e.target.files && e.target.files[0];
+      if (!file) return;
+      var reader = new FileReader();
+      reader.onload = function () { importText(String(reader.result)); };
+      reader.onerror = function () { toast('Could not read the file'); };
+      reader.readAsText(file);
+    });
+
     $('clear-data').addEventListener('click', function () {
       if (!window.confirm('Clear every habit and check-in from this device? There is no backup yet; this cannot be undone.')) return;
       doc = emptyDocument();
@@ -914,6 +1051,11 @@ if (typeof module !== 'undefined' && module.exports) {
     percentWords: percentWords,
     controlKind: controlKind,
     emptyDocument: emptyDocument,
+    FILE_NAME: FILE_NAME,
+    serializeDocument: serializeDocument,
+    plural: plural,
+    documentProblem: documentProblem,
+    normalizeDocument: normalizeDocument,
     newId: newId,
     blankDraft: blankDraft,
     draftFrom: draftFrom,

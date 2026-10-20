@@ -203,6 +203,15 @@
     </header>
     <div class="scroll">
       <div class="section">
+        <div class="section-title">Export</div>
+        <div class="card">
+          <button type="button" id="export-btn" class="btn primary">Export file</button>
+          <button type="button" id="import-btn" class="btn outline">Import file</button>
+          <input type="file" id="import-file" accept=".json,application/json" class="hidden" aria-label="Import file">
+          <p class="hint">Export writes every habit and check-in to Low-Hanging Fruit.json, a readable file you can keep anywhere. Import replaces everything on this device with the habits in such a file.</p>
+        </div>
+      </div>
+      <div class="section">
         <div class="section-title">Appearance</div>
         <div class="card">
           <div class="setting-row">
@@ -227,7 +236,7 @@
         <div class="section-title">Data</div>
         <div class="card">
           <button type="button" id="clear-data" class="btn outline-destructive">Clear local data</button>
-          <p class="hint">Removes every habit and check-in from this device. Backup and export come in a later milestone; until then this is the only copy.</p>
+          <p class="hint">Removes every habit and check-in from this device. Export a file first if you want to keep a copy.</p>
         </div>
       </div>
       <p class="version">Low-Hanging Fruit v<span id="version"></span></p>
