@@ -54,15 +54,22 @@ async function main() {
   try {
     await page.goto(url);
     // The splash shows on the first open of the day and a tap ends it; a reload the same day shows nothing.
-    await page.waitForSelector('#splash:not(.hidden)');
+    await page.waitForSelector('#splash:not(.fade)');
     assert.match(await text('#splash .quote'), /small steps/);
     assert.equal(await text('#splash .by'), 'Zeno of Citium');
     await shot('00-splash');
     assert.equal(await page.evaluate(() => JSON.parse(localStorage.getItem('fruit.settings')).splash), TODAY);
     await page.click('#splash');
-    await page.waitForSelector('#splash.hidden', { state: 'attached' });
+    await page.waitForSelector('#splash.fade', { state: 'attached' });
     await page.reload();
-    assert.equal(await page.evaluate(() => document.getElementById('splash').classList.contains('hidden')), true, 'the splash shows once a day');
+    assert.equal(await page.evaluate(() => document.documentElement.classList.contains('no-splash')), true, 'a same-day open hides the splash before the first paint');
+    assert.equal(await page.isVisible('#splash'), false, 'the splash shows once a day');
+    // The day turning over while the app stays loaded: brought back on a new day, it shows again.
+    await page.evaluate(() => { const s = JSON.parse(localStorage.getItem('fruit.settings')); s.splash = '2000-01-01'; localStorage.setItem('fruit.settings', JSON.stringify(s)); });
+    await page.reload();
+    await page.waitForSelector('#splash:not(.fade)');
+    await page.click('#splash');
+    await page.waitForSelector('#splash.fade', { state: 'attached' });
     assert.equal(await text('#title'), 'Today');
     assert.equal(await text('#today .date'), app.longDate(TODAY, rules.weekday(TODAY)));
     assert.match(await text('#today'), /No habits yet/);

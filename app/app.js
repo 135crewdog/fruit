@@ -870,26 +870,25 @@ if (typeof document !== 'undefined') {
       if (now !== ui.today) { ui.today = now; render(); }
     }
     setInterval(checkDay, 60000);
-    document.addEventListener('visibilitychange', function () { if (!document.hidden) checkDay(); });
+    document.addEventListener('visibilitychange', function () { if (!document.hidden) { checkDay(); showSplash(); } });
 
     // ---- the splash: Zeno's line, on the first open of each day ----
 
-    var SPLASH_MS = 3000;
+    // A same-day open hides it before the first paint (the inline script in index.html sets `no-splash` on
+    // the root). Here it is shown when the day is new: at start, and when the app is brought back after the
+    // day turned over while it stayed loaded. Hiding is a fade; `visibility: hidden` takes the taps with it.
+    var SPLASH_MS = 3000, splashTimer = null;
+    function hideSplash() { clearTimeout(splashTimer); $('splash').classList.add('fade'); }
     function showSplash() {
       if (settings.splash === ui.today) return;
       settings.splash = ui.today;
       save(STORAGE.settings, settings);
-      var s = $('splash'), gone = false;
-      function hide() {
-        if (gone) return;
-        gone = true;
-        s.classList.add('fade');
-        setTimeout(function () { s.classList.add('hidden'); }, 450);
-      }
-      s.addEventListener('click', hide);
-      s.classList.remove('hidden');
-      setTimeout(hide, SPLASH_MS);
+      document.documentElement.classList.remove('no-splash');
+      $('splash').classList.remove('fade');
+      clearTimeout(splashTimer);
+      splashTimer = setTimeout(hideSplash, SPLASH_MS);
     }
+    $('splash').addEventListener('click', hideSplash);
 
     // ---- start ----
 
