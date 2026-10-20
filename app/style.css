@@ -304,8 +304,27 @@ input[type="date"] { background: var(--fill); border: none; border-radius: 8px; 
   max-width: 90vw; box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25); z-index: 10;
 }
 
+/* The splash: a pull quote with a bar in the palette's done color, over the whole shell, on the first
+   open of each day. It is there at first paint, holds a few seconds, then fades; a tap ends it early. */
+.splash {
+  position: fixed; top: 0; left: 0; right: 0; height: 100vh; z-index: 20;
+  max-width: 430px; margin: 0 auto; padding: env(safe-area-inset-top) 32px 0;
+  display: flex; flex-direction: column; justify-content: center;
+  background: var(--bg); color: var(--text);
+  transition: opacity 0.4s, visibility 0.4s;
+}
+.splash.fade { opacity: 0; visibility: hidden; }
+.no-splash .splash { display: none; }
+.splash blockquote { border-left: 4px solid var(--leaf); padding-left: 20px; }
+.splash .quote { font-size: 24px; font-weight: 600; line-height: 1.3; letter-spacing: -0.2px; }
+.splash .by { margin-top: 14px; font-size: 15px; color: var(--text2); }
+.splash-name {
+  position: absolute; left: 0; right: 0; bottom: calc(48px + env(safe-area-inset-bottom)); text-align: center;
+  font-size: 13px; letter-spacing: 1px; text-transform: uppercase; color: var(--text2);
+}
+
 /* Reduced motion: every slide is a cut and nothing sweeps or pops. Last, so it wins every cascade above. */
 @media (prefers-reduced-motion: reduce) {
-  .pages, .screen, .sheet { transition: none; }
+  .pages, .screen, .sheet, .splash { transition: none; }
   .row .pop, .row.anim::before, .row.anim .text, .row.anim .sub { animation: none; }
 }

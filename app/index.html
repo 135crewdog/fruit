@@ -12,6 +12,15 @@
 <link rel="icon" href="icon-192.png" type="image/png">
 <link rel="apple-touch-icon" href="icon-192.png">
 <link rel="stylesheet" href="style.css">
+<script>
+  // Before the first paint: the splash is in the page unless it already showed today. The local day,
+  // read the way rules.js reads it, which has not loaded yet; a blocked storage shows the splash.
+  try {
+    var fruitSettings = JSON.parse(localStorage.getItem('fruit.settings') || '{}'), fruitNow = new Date();
+    var fruitToday = fruitNow.getFullYear() + '-' + ('0' + (fruitNow.getMonth() + 1)).slice(-2) + '-' + ('0' + fruitNow.getDate()).slice(-2);
+    if (fruitSettings.splash === fruitToday) document.documentElement.classList.add('no-splash');
+  } catch (e) { /* storage blocked: the app decides once it runs */ }
+</script>
 </head>
 <body>
 <div id="app" class="app">
@@ -225,6 +234,14 @@
     </div>
   </section>
 
+</div>
+<!-- The splash: Zeno's line, shown on the first open of each day and gone in a few seconds -->
+<div id="splash" class="splash" role="dialog" aria-label="Quote">
+  <blockquote>
+    <p class="quote">“Well-being is realized by small steps, but is truly no small thing.”</p>
+    <p class="by">Zeno of Citium</p>
+  </blockquote>
+  <p class="splash-name">Low-Hanging Fruit</p>
 </div>
 <div id="toast" class="toast hidden" role="status"></div>
 <script src="rules.js"></script>

@@ -60,7 +60,7 @@ One document in `localStorage` under `fruit.data`. The backup file and the expor
 - `log` maps a local date (`YYYY-MM-DD`) to the amount logged that day: what was done for a start habit, the slips for a stop habit. A start habit's day is **done** when its amount is at least `goal.amount`, **partial** when it is above 0 and below; a once-a-day habit's `0` is the mark for **not today**, a miss settled on purpose. A stop habit's day is **done** when it is logged with slips at most the limit (a `0` is the mark for a day with nothing to report), **missed** when over the limit or, once the day is over, when nothing was logged. A `0` is kept when it is a mark, either habit's; a count stepped back to 0 or an amount cleared is removed.
 - `id` is random and never shown. `created` is the local date the habit was made. `archived` is the local date it was archived, or `null`.
 - `snoozes` lists the breaks taken from the habit, each `{ from, to }` with inclusive local dates, `to` null for a snooze until turned off. A snooze always starts on the day it is made. The list is kept forever, because the history depends on it.
-- Settings live apart, in `fruit.settings` (`{ url, token, theme, palette }`), so a backup or export never carries the token, and the look of the app is the phone's, not the document's.
+- Settings live apart, in `fruit.settings` (`{ url, token, theme, palette, splash }`), so a backup or export never carries the token, and the look of the app is the phone's, not the document's.
 
 ## The rules
 
@@ -180,13 +180,17 @@ Where Show Time uses iOS blue and Apollo its due-date colors, Low-Hanging Fruit 
 | Peach | `#ffb37a` peach | `#ffe29a` cream | `#e06c7a` the red skin | dark |
 | Blackberry | `#6a2c91` blackberry | `#a04f98` plum | `#a63d40` wine | white |
 
-A palette is these four values, the same in light and dark; the grays around them follow the theme. Pear was chosen on 2026-10-18 from rendered options ("Sunlit"), vivid enough to make you want to eat a pear; Peach and Blackberry the same day, from options drawn on the finished pills. The palette is picked in Settings → Appearance, stored in `fruit.settings`, and set on the root as `data-palette`. The **icon** is the name in title case, extra-bold, with the peach emoji as the hyphen (`Low 🍑 / Hanging / Fruit`), on a mango gradient from green through orange to red, after Apollo's gradient icon. It is baked to PNG by `tools/icon.js` so every device shows the same picture; there is no SVG icon. Everything the app says is sentence case; section titles are uppercase as a visual device; proper nouns keep their capitals. Every date a human reads is `DD-Mmm-YY` (`17-Oct-26`); the Today date adds the weekday (`Saturday 17-Oct-26`).
+A palette is these four values, the same in light and dark; the grays around them follow the theme. Pear was chosen on 2026-10-18 from rendered options ("Sunlit"), vivid enough to make you want to eat a pear; Peach and Blackberry the same day, from options drawn on the finished pills. The palette is picked in Settings → Appearance, stored in `fruit.settings`, and set on the root as `data-palette`. The **icon** is the name in title case, extra-bold, with the peach emoji as the hyphen (`Low 🍑 / Hanging / Fruit`), on a pastel mango gradient, green through yellow to salmon (`#CFE6BE`, `#FDE7A8`, `#F6BFAE`; softened from the vivid mango on 2026-10-20 from rendered options), after Apollo's gradient icon. It is baked to PNG by `tools/icon.js` so every device shows the same picture; there is no SVG icon. Everything the app says is sentence case; section titles are uppercase as a visual device; proper nouns keep their capitals. Every date a human reads is `DD-Mmm-YY` (`17-Oct-26`); the Today date adds the weekday (`Saturday 17-Oct-26`).
 
 **Every list row leads with the identity**, on Today and Habits alike: `Become a clear-headed person` in 17px, built from the identity field the way the statement is, with what the day asks beneath it in gray, the action with its cue (`Wake up before 6 a.m.`; `Not drink alcohol on a weeknight` for a stop habit). The gray line is one sentence-case line whatever it carries: its first letter capitalized, every part after a middle dot lowercase, day names and dates keeping their capitals (`Get out of bed before 6 a.m. · weekdays · snoozed until turned off`). The identity is the point of the habit and the action is the chore, so the action never heads a row. Two habits that share an identity read as twins at a glance and the gray line tells them apart. The detail screen shows the whole sentence.
 
 ### Navigation
 
 An iOS tab bar at the bottom with two tabs, **Today** and **Habits**, and the gear in the header for Settings. (Atoms has four tabs; two is what this app needs.)
+
+### The splash
+
+On the first open of each local day the app shows one line over the whole shell, with the app drawn beneath it: Zeno of Citium's "Well-being is realized by small steps, but is truly no small thing." (Diogenes Laërtius, *Lives of the Eminent Philosophers*, VII.26, though the screen names only Zeno), set as a pull quote with a bar in the palette's `--leaf`, the attribution in gray beneath it, and the app's name small at the bottom. It is in the page from the first paint (an inline script in the head hides it before paint on a same-day open, so neither the shell nor the quote flashes), holds three seconds, then fades out over 0.4s; a tap anywhere ends it early. It never shows again that day, however many times the app is opened: the date it was last shown is kept in `fruit.settings`, on the phone and out of the backup. An installed app that stays loaded overnight shows it when it is brought back on the new day; the day turning over while the app is on screen shows nothing until then. With reduced motion on it cuts instead of fading.
 
 ### Today
 
@@ -219,7 +223,7 @@ Sections: **Backup** (web app URL, token, Show token, Save, Back up now, Restore
 
 ### Storage
 
-`localStorage` keys `fruit.data` (the document), `fruit.settings` (`{ url, token, theme, palette }`) and `fruit.backup` (`{ lastBackup, pending, lastError }`).
+`localStorage` keys `fruit.data` (the document), `fruit.settings` (`{ url, token, theme, palette, splash }`, the last the local date the splash was last shown) and `fruit.backup` (`{ lastBackup, pending, lastError }`).
 
 ### Hosting and updates
 

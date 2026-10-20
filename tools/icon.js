@@ -13,7 +13,7 @@ const HTML = `<!doctype html><html><head><meta charset="utf-8"><style>
   html, body { margin: 0; background: transparent; }
   .tile {
     width: 512px; height: 512px; display: flex; align-items: center; justify-content: center;
-    background: linear-gradient(180deg, #6DB33F 0%, #F4B400 52%, #E8542B 100%);
+    background: linear-gradient(180deg, #CFE6BE 0%, #FDE7A8 52%, #F6BFAE 100%);
     font-family: Inter, "Inter Display", -apple-system, sans-serif; font-weight: 800; font-size: 100px;
     line-height: 1; letter-spacing: -1.5px; color: #1c1c1e; text-align: center; -webkit-font-smoothing: antialiased;
   }

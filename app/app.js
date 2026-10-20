@@ -9,7 +9,7 @@
  */
 'use strict';
 
-var APP_VERSION = '2026.10.20.3';
+var APP_VERSION = '2026.10.20.4';
 var STORAGE = { settings: 'fruit.settings', data: 'fruit.data', backup: 'fruit.backup' };
 var MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 var LONG_DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
@@ -870,13 +870,32 @@ if (typeof document !== 'undefined') {
       if (now !== ui.today) { ui.today = now; render(); }
     }
     setInterval(checkDay, 60000);
-    document.addEventListener('visibilitychange', function () { if (!document.hidden) checkDay(); });
+    document.addEventListener('visibilitychange', function () { if (!document.hidden) { checkDay(); showSplash(); } });
+
+    // ---- the splash: Zeno's line, on the first open of each day ----
+
+    // A same-day open hides it before the first paint (the inline script in index.html sets `no-splash` on
+    // the root). Here it is shown when the day is new: at start, and when the app is brought back after the
+    // day turned over while it stayed loaded. Hiding is a fade; `visibility: hidden` takes the taps with it.
+    var SPLASH_MS = 3000, splashTimer = null;
+    function hideSplash() { clearTimeout(splashTimer); $('splash').classList.add('fade'); }
+    function showSplash() {
+      if (settings.splash === ui.today) return;
+      settings.splash = ui.today;
+      save(STORAGE.settings, settings);
+      document.documentElement.classList.remove('no-splash');
+      $('splash').classList.remove('fade');
+      clearTimeout(splashTimer);
+      splashTimer = setTimeout(hideSplash, SPLASH_MS);
+    }
+    $('splash').addEventListener('click', hideSplash);
 
     // ---- start ----
 
     applyTheme();
     setTab(0);
     render();
+    showSplash();
     if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(function () { /* the app still works online */ });
   })();
 }
